@@ -15,7 +15,7 @@ err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
 		.ascii "linea 51"
 barraN	:	.asciiz "\n"
 espacio	:	.asciiz " "
-dollar	:	.asciiz "$"
+dollar	:	.asciiz " $"
 
 ##########################################################################################
 # Tabla de codigos de operacion
@@ -29,7 +29,7 @@ dollar	:	.asciiz "$"
 #       	Si usa extension de codigo este campo contiene un apuntador NULO
 #  Apuntador (4 bytes) 	a la funcion que implementa la operacion o
 #				a la Tabla con los coop extendidos
-	.align 2
+	.word 0
 coop:					
 	.half 0 1 		# coop 0 extension de coop
 	.word 0 _Tabla0      
@@ -383,39 +383,27 @@ interpretar:
 	
 	andi $a0 $t1 0xfc000000
 	srl $a0 $a0 26
-	mul $a0 $a0 12
-	
-	li $v0 1
-	syscall
-	
-	
-	la $a0 espacio
-	li $v0 4
-	syscall
+	mul $s4 $a0 12
 		
-	add $t2 $a0 $s3 
+	add $s4 $s4 $s3 
 	#en $s3 tengo la direccion del arreglo 
 	#en $t2 tengo la direccion del elemento
-
-	la $a0 4($t2)
-	li $v0 4
-	#syscall
 	
 	la $a0 espacio
 	li $v0 4
 	syscall
 	
-	
-	lh $t3 0($t2)
-	move $a0 $t3
-	li $v0 1
+	lh $t3 0($s4)
+
+	la $a0 espacio
+	li $v0 4
 	syscall
 	#ahora tengo el formato de operaccion
-	beq $t3 192 salto
-	beq $t3 128 inmediato
-	beq $t3 64 registro
+	beq $t3 2 salto
+	beq $t3 1 inmediato
+	beq $t3 0 registro
 	
-	lh $t3 2($t2)
+	lh $t3 2($s4)
 	beqz $t3 extencion
 	
 back:
@@ -428,15 +416,17 @@ back:
 	b interpretar
 
 registro:
-	#lw $a0 4($t2)
-	#li $v0 4
-	#syscall
 
+	lw $a0 4($s4)
+	li $v0 4
+	syscall
+	
 	li $v0 4
 	la $a0 dollar
 	syscall
 
 	andi $a0 $t1 0x0000f800
+	srl $a0 $a0 11
 	li $v0 1
 	syscall	
 	
@@ -445,6 +435,7 @@ registro:
 	syscall	
 	
 	andi $a0 $t1 0x03e00000
+	srl $a0 $a0 21
 	li $v0 1
 	syscall	
 
@@ -453,6 +444,7 @@ registro:
 	la $a0 dollar
 	syscall	
 	andi $a0 $t1 0x001f0000
+	srl $a0 $a0 16
 	li $v0 1
 	syscall	
 
