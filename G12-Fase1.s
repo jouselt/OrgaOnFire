@@ -403,8 +403,7 @@ interpretar:
 	beq $t3 1 inmediato
 	beq $t3 0 registro
 	
-	lh $t3 2($s4)
-	beqz $t3 extencion
+
 	
 back:
 
@@ -417,9 +416,12 @@ back:
 
 registro:
 
+	lh $t3 2($s4)
+	beqz $t3 expansion
+
 	lw $a0 4($s4)
 	li $v0 4
-	syscall
+	#syscall
 	
 	li $v0 4
 	la $a0 dollar
@@ -449,16 +451,47 @@ registro:
 	syscall	
 
 b back
+
+expansion:
+	#hacer algo para la expansion.
+b back
+
 inmediato:
+
+	lw $a0 4($s4)
+	li $v0 4
+	syscall
+
+	li $v0 4
+	la $a0 dollar
+	syscall	
+	andi $a0 $t1 0x03e00000
+	srl $a0 $a0 21
+	li $v0 1
+	syscall	
+	
+	li $v0 4
+	la $a0 dollar
+	syscall	
+	andi $a0 $t1 0x001f0000
+	srl $a0 $a0 16
+	li $v0 1
+	syscall	
+	li $v0 4
+	la $a0 espacio
+	syscall	
+	andi $a0 $t1 0x0000ffff
+	sll $a0 $a0 16
+	sra $a0 $a0 16
+	li $v0 1
+	syscall
 
 b back
 salto:
 
 b back
 
-extencion:
-	#hacer algo para la extencion.
-b back
+
 fin:	
 	#anuncio el fin del programa.
 	li $v0 4
