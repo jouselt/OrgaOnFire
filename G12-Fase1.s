@@ -3,14 +3,14 @@
 # en programa el bloque de memoria
 # y luego son interpretadas como instrucciones.
 # autor: Jouselt Fernandez
-# Fecha: 26/11/2013
+# Fecha: 15/12/2013
 
 	.data
 
 buffer	:	.space 10
 fileName:	.asciiz "programa.txt"
-msg: 		.asciiz "Fin.. Por ahora... \n"
-err   	: 	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
+msg	:	.asciiz "Fin.. Por ahora... \n"
+err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
 		.ascii "o tal vez estas usando un archivo creado en linux, ver Nota en "
 		.ascii "linea 51"
 barraN	:	.asciiz "\n"
@@ -29,6 +29,7 @@ dollar	:	.asciiz "$"
 #       	Si usa extension de codigo este campo contiene un apuntador NULO
 #  Apuntador (4 bytes) 	a la funcion que implementa la operacion o
 #				a la Tabla con los coop extendidos
+	.align 2
 coop:					
 	.half 0 1 		# coop 0 extension de coop
 	.word 0 _Tabla0      
@@ -384,11 +385,23 @@ interpretar:
 	srl $a0 $a0 26
 	mul $a0 $a0 12
 	
+	li $v0 1
+	syscall
+	
+	
+	la $a0 espacio
+	li $v0 4
+	syscall
+		
 	add $t2 $a0 $s3 
 	#en $s3 tengo la direccion del arreglo 
 	#en $t2 tengo la direccion del elemento
-#	lw $a0 4($t2)
-	lw $a0 4($t2)
+
+	la $a0 4($t2)
+	li $v0 4
+	#syscall
+	
+	la $a0 espacio
 	li $v0 4
 	syscall
 	
@@ -416,12 +429,12 @@ back:
 
 registro:
 	#lw $a0 4($t2)
-	li $v0 4
+	#li $v0 4
 	#syscall
 
 	li $v0 4
 	la $a0 dollar
-	syscall	
+	syscall
 
 	andi $a0 $t1 0x0000f800
 	li $v0 1
@@ -431,7 +444,7 @@ registro:
 	la $a0 dollar
 	syscall	
 	
-	andi $a0 $t1  0x03e00000
+	andi $a0 $t1 0x03e00000
 	li $v0 1
 	syscall	
 
