@@ -418,11 +418,13 @@ registro:
 
 	lh $t3 2($s4)
 	beqz $t3 expansion
-
+	b cont
+	
 	lw $a0 4($s4)
 	li $v0 4
-	#syscall
+	syscall
 	
+cont:
 	li $v0 4
 	la $a0 dollar
 	syscall
@@ -453,8 +455,12 @@ registro:
 b back
 
 expansion:
-	#hacer algo para la expansion.
-b back
+	la $s5 _Tabla0
+	andi $a0 $t1 0x0000003f
+	sll $a0 $a0 3 #multiplico por 8
+	add $a0 $a0 $s5
+	lw $a0 0($a0)
+b cont
 
 inmediato:
 
