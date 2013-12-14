@@ -387,6 +387,11 @@ interpretar:
 	add $t2 $a0 $s3 
 	#en $s3 tengo la direccion del arreglo 
 	#en $t2 tengo la direccion del elemento
+#	lw $a0 4($t2)
+	lw $a0 4($t2)
+	li $v0 4
+	syscall
+	
 	
 	lh $t3 0($t2)
 	move $a0 $t3
@@ -410,9 +415,9 @@ back:
 	b interpretar
 
 registro:
-	lw $a0 4($t2)
+	#lw $a0 4($t2)
 	li $v0 4
-	syscall
+	#syscall
 
 	li $v0 4
 	la $a0 dollar
