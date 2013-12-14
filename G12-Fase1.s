@@ -417,22 +417,12 @@ back:
 registro:
 
 	lh $t3 2($s4)
-	beqz $t3 expansion
-	b cont
+	bnez $t3 expansion
 	
+	#no hay codigo de exp
 	lw $a0 4($s4)
 	li $v0 4
 	syscall
-	
-cont:
-	li $v0 4
-	la $a0 dollar
-	syscall
-
-	andi $a0 $t1 0x0000f800
-	srl $a0 $a0 11
-	li $v0 1
-	syscall	
 	
 	li $v0 4
 	la $a0 dollar
@@ -443,6 +433,15 @@ cont:
 	li $v0 1
 	syscall	
 
+cont:
+	li $v0 4
+	la $a0 dollar
+	syscall
+
+	andi $a0 $t1 0x0000f800
+	srl $a0 $a0 11
+	li $v0 1
+	syscall
 	
 	li $v0 4
 	la $a0 dollar
@@ -451,15 +450,28 @@ cont:
 	srl $a0 $a0 16
 	li $v0 1
 	syscall	
+	
+	
 
 b back
 
 expansion:
+
 	la $s5 _Tabla0
 	andi $a0 $t1 0x0000003f
 	sll $a0 $a0 3 #multiplico por 8
 	add $a0 $a0 $s5
 	lw $a0 0($a0)
+	li $v0 4
+	syscall
+	li $v0 4
+	la $a0 espacio
+	syscall	
+	andi $a0 $t1 0x000007c0
+	sll $a0 $a0 21
+	sra $a0 $a0 27
+	li $v0 1
+	syscall
 b cont
 
 inmediato:
@@ -494,6 +506,18 @@ inmediato:
 
 b back
 salto:
+	lw $a0 4($s4)
+	li $v0 4
+	syscall
+	
+	la $a0 espacio
+	li $v0 4
+	syscall
+	
+	andi $a0 $t1 0x03ffffff
+	sll $a0 $a0 2
+	li $v0 34
+	syscall	
 
 b back
 
