@@ -26,9 +26,10 @@ dollar	:	.asciiz " $"
 # Extension (2 bytes):		0 No usa
 #            			1 Si usa
 # Apuntador (4 bytes) a la cadena de caracteres que contiene el nombre de la operacion  
-#       	Si usa extension de codigo este campo contiene un apuntador NULO
+#       		Si usa extension de codigo este campo contiene un apuntador NULO
 #  Apuntador (4 bytes) 	a la funcion que implementa la operacion o
-#				a la Tabla con los coop extendidos
+#			a la Tabla con los coop extendidos
+#########################################################################################
 	.align 2
 coop:					
 	.half 0 1 		# coop 0    extension de coop
@@ -115,12 +116,13 @@ coop:
 	.word 0 0 __No 		# coop 61
 	.word 0 0 __No 		# coop 62
 	.word 0 0 __No 		# coop 63
-
-				# Tabla con la extension de codigos para el coop = 0
-				# Estructura
-				#	Apuntador (4 bytes) 	a la cadena de caracteres que contiene el nombre de la operacion
-				#       		    	
-				#       Apuntador (4 bytes) 	a la funcion que implementa la operacion 
+#########################################################################################
+# Tabla con la extension de codigos para el coop = 0	
+# Estructura:
+#Apuntador (4 bytes) a la cadena de caracteres que contiene el nombre de la operacion
+#       		    	
+#Apuntador (4 bytes) a la funcion que implementa la operacion 
+#########################################################################################
 _Tabla0:
 	.word _sll __sll	# coop 0 sll
 	.word 0 __No 		# coop 1 
@@ -187,65 +189,67 @@ _Tabla0:
 	.word 0 __No 		# coop 62
 	.word 0 __No 		# coop 63
 			
-_j:.asciiz "j "
-_jal:.asciiz "jal "
-_beq:.asciiz "beq "
-_bne:.asciiz "bne "
-_blez:.asciiz "blez "
-_bgtz:.asciiz "bgtz "
-_addi:.asciiz "addi "
-_addiu:.asciiz "addiu "
-_slti:.asciiz "slti "
-_sltiu:.ascii "sltiu "
-_andi:.asciiz "andi "
-_ori:.asciiz "ori "
-_xori:.asciiz "xori " 
-_llo:.asciiz "llo "
-_lb:.asciiz "lb "
-_lw:.asciiz "lw "
-_sb:.asciiz "sb "
-_sh:.asciiz "sh "
-_sw:.asciiz "sw "
-_sll:.asciiz "sll "
-_srl:.asciiz "srl "
-_sra:.asciiz "sra "
-_sllv:.asciiz "sllv "
-_srlv:.asciiz "srlv "
-_srav:.asciiz "srav "
-_jr:.asciiz "jr "
-_jalr:.asciiz "jalr "
-_mult:.asciiz "mult "
-_multu:.asciiz "multu "
-_div:.asciiz "div "
-_divu:.asciiz "divu "
-_add:.asciiz "add "
-_addu:.asciiz "addu "
-_sub:.asciiz "sub "
-_subu:.asciiz "subu "
-_and:.asciiz "and "
-_or:.asciiz "or "
-_xor:.asciiz "xor "
-_nor:.asciiz "nor "
+_j	:.asciiz "j "
+_jal	:.asciiz "jal "
+_beq	:.asciiz "beq "
+_bne	:.asciiz "bne "
+_blez	:.asciiz "blez "
+_bgtz	:.asciiz "bgtz "
+_addi	:.asciiz "addi "
+_addiu	:.asciiz "addiu "
+_slti	:.asciiz "slti "
+_sltiu	:.ascii "sltiu "
+_andi	:.asciiz "andi "
+_ori	:.asciiz "ori "
+_xori	:.asciiz "xori " 
+_llo	:.asciiz "llo "
+_lb	:.asciiz "lb "
+_lw	:.asciiz "lw "
+_sb	:.asciiz "sb "
+_sh	:.asciiz "sh "
+_sw	:.asciiz "sw "
+_sll	:.asciiz "sll "
+_srl	:.asciiz "srl "
+_sra	:.asciiz "sra "
+_sllv	:.asciiz "sllv "
+_srlv	:.asciiz "srlv "
+_srav	:.asciiz "srav "
+_jr	:.asciiz "jr "
+_jalr	:.asciiz "jalr "
+_mult	:.asciiz "mult "
+_multu	:.asciiz "multu "
+_div	:.asciiz "div "
+_divu	:.asciiz "divu "
+_add	:.asciiz "add "
+_addu	:.asciiz "addu "
+_sub	:.asciiz "sub "
+_subu	:.asciiz "subu "
+_and	:.asciiz "and "
+_or	:.asciiz "or "
+_xor	:.asciiz "xor "
+_nor	:.asciiz "nor "
 
 .align 2
-registros:.space 128 		# espacio reservado para los registros de la maquina virtual
+registros:.space 128		# espacio reservado para los registros de la maquina virtual
 
 memoria:.space 1200		# espacio reservado para la memoria estatica de la maquina virtual	
 
 fin_pila:.space 396		# espacio para implementar la pila de la maquina virtual
-pila:.word 0			# primera palabra disponible de la pila. La pila crece de direcciones altas a bajas
+pila:.word 0			# primera palabra disponible de la pila. La pila crece 
+				# de direcciones altas a bajas
 
 
-contador:.word programa		# Registro especial Contador de Programa. Contiene la direccion de la proxima
-				# instruccion a ser ejecutada eb la Maquina Virtual
+contador:.word programa		# Registro especial Contador de Programa. Contiene la
+				# direccion de la proxima instruccion a ser ejecutada 
+				# en la Maquina Virtual
 				
-programa:.space 800		# espacio reservado para almacenar el codigo ensamblado del programa a ser ejecutado por la
-				# maquina virtual
+programa:.space 800		# espacio reservado para almacenar el codigo ensamblado 
+				# del programa a ser ejecutado por la maquina virtual
 
 	.text
 
 #########################################################################################
-#Planificación de registros Main
+#Planificacion de registros Main
 #########################################################################################
 #      $t0 Guarda la cantidad de bits a correr para guardar y mostrar la palabra
 #	   Indice de programa
@@ -341,8 +345,7 @@ looby:
 	li $v0 16
 	move $a0 $s0
 	syscall
-
-
+	
 	#inicializamos t0 en programa para reusarlo como indice.
 	add $t0 $s1 $0
 	
@@ -403,8 +406,6 @@ interpretar:
 	beq $t3 2 salto
 	beq $t3 1 inmediato
 	beq $t3 0 registro
-	
-
 	
 back:
 
