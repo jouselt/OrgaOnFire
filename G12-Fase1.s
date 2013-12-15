@@ -399,6 +399,7 @@ interpretar:
 	li $v0 4
 	syscall
 	#ahora tengo el formato de operaccion
+	beqz $s4 expansion
 	beq $t3 2 salto
 	beq $t3 1 inmediato
 	beq $t3 0 registro
@@ -433,7 +434,6 @@ registro:
 	li $v0 1
 	syscall	
 
-cont:
 	li $v0 4
 	la $a0 dollar
 	syscall
@@ -445,13 +445,11 @@ cont:
 	
 	li $v0 4
 	la $a0 dollar
-	syscall	
+	syscall
 	andi $a0 $t1 0x001f0000
 	srl $a0 $a0 16
 	li $v0 1
 	syscall	
-	
-	
 
 b back
 
@@ -472,7 +470,7 @@ expansion:
 	sra $a0 $a0 27
 	li $v0 1
 	syscall
-b cont
+b back
 
 inmediato:
 
