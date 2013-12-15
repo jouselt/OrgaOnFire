@@ -29,14 +29,14 @@ dollar	:	.asciiz " $"
 #       	Si usa extension de codigo este campo contiene un apuntador NULO
 #  Apuntador (4 bytes) 	a la funcion que implementa la operacion o
 #				a la Tabla con los coop extendidos
-	.word 0
+	.align 2
 coop:					
-	.half 0 1 		# coop 0 extension de coop
+	.half 0 1 		# coop 0    extension de coop
 	.word 0 _Tabla0      
 	.word 0 0 __No 		# coop 1
 	.half 2 0		# coop 2 j
 	.word _j __j
-	.half 1 0		# coop 3 jal
+	.half 2 0		# coop 3 jal
 	.word _jal __jal
 	.half 1 0 		# coop 4 beq
 	.word _beq __beq
@@ -44,7 +44,7 @@ coop:
 	.word _bne __bne
 	.half 1 0		# coop 6 blez
 	.word _blez __blez
-	.half 0 0		# coop 7 bgtz
+	.half 1 0		# coop 7 bgtz
 	.word _bgtz __bgtz	
 	.half 1 0		# coop 8 addi
 	.word _addi __addi
@@ -116,11 +116,11 @@ coop:
 	.word 0 0 __No 		# coop 62
 	.word 0 0 __No 		# coop 63
 
-# Tabla con la extension de codigos para el coop = 0
-# Estructura
-#Apuntador (4 bytes) 	a la cadena de caracteres que contiene el nombre de la operacion
-#       		    	
-#Apuntador (4 bytes) 	a la funcion que implementa la operacion 
+				# Tabla con la extension de codigos para el coop = 0
+				# Estructura
+				#	Apuntador (4 bytes) 	a la cadena de caracteres que contiene el nombre de la operacion
+				#       		    	
+				#       Apuntador (4 bytes) 	a la funcion que implementa la operacion 
 _Tabla0:
 	.word _sll __sll	# coop 0 sll
 	.word 0 __No 		# coop 1 
@@ -186,46 +186,46 @@ _Tabla0:
 	.word 0 __No 		# coop 61
 	.word 0 __No 		# coop 62
 	.word 0 __No 		# coop 63
-
-_j	:.asciiz "j "
-_jal	:.asciiz "jal "
-_beq	:.asciiz "beq "
-_bne	:.asciiz "bne "
-_blez	:.asciiz "blez "
-_bgtz	:.asciiz "bgtz "
-_addi	:.asciiz "addi "
-_addiu	:.asciiz "addiu "
-_slti	:.asciiz "slti "
-_sltiu	:.asciiz "sltiu "
-_andi	:.asciiz "andi "
-_ori	:.asciiz "ori "
-_xori	:.asciiz "xori " 
-_llo	:.asciiz "llo "
-_lb	:.asciiz "lb "
-_lw	:.asciiz "lw "
-_sb	:.asciiz "sb "
-_sh	:.asciiz "sh "
-_sw	:.asciiz "sw "
-_sll	:.asciiz "sll "
-_srl	:.asciiz "srl "
-_sra	:.asciiz "sra "
-_sllv	:.asciiz "sllv "
-_srlv	:.asciiz "srlv "
-_srav	:.asciiz "srav "
-_jr	:.asciiz "jr "
-_jalr	:.asciiz "jalr "
-_mult	:.asciiz "mult "
-_multu	:.asciiz "multu "
-_div	:.asciiz "div "
-_divu	:.asciiz "divu "
-_add	:.asciiz "add "
-_addu	:.asciiz "addu "
-_sub	:.asciiz "sub "
-_subu	:.asciiz "subu "
-_and	:.asciiz "and "
-_or	:.asciiz "or "
-_xor	:.asciiz "xor "
-_nor	:.asciiz "nor "
+			
+_j:.asciiz "j "
+_jal:.asciiz "jal "
+_beq:.asciiz "beq "
+_bne:.asciiz "bne "
+_blez:.asciiz "blez "
+_bgtz:.asciiz "bgtz "
+_addi:.asciiz "addi "
+_addiu:.asciiz "addiu "
+_slti:.asciiz "slti "
+_sltiu:.ascii "sltiu "
+_andi:.asciiz "andi "
+_ori:.asciiz "ori "
+_xori:.asciiz "xori " 
+_llo:.asciiz "llo "
+_lb:.asciiz "lb "
+_lw:.asciiz "lw "
+_sb:.asciiz "sb "
+_sh:.asciiz "sh "
+_sw:.asciiz "sw "
+_sll:.asciiz "sll "
+_srl:.asciiz "srl "
+_sra:.asciiz "sra "
+_sllv:.asciiz "sllv "
+_srlv:.asciiz "srlv "
+_srav:.asciiz "srav "
+_jr:.asciiz "jr "
+_jalr:.asciiz "jalr "
+_mult:.asciiz "mult "
+_multu:.asciiz "multu "
+_div:.asciiz "div "
+_divu:.asciiz "divu "
+_add:.asciiz "add "
+_addu:.asciiz "addu "
+_sub:.asciiz "sub "
+_subu:.asciiz "subu "
+_and:.asciiz "and "
+_or:.asciiz "or "
+_xor:.asciiz "xor "
+_nor:.asciiz "nor "
 
 .align 2
 registros:.space 128 		# espacio reservado para los registros de la maquina virtual
@@ -243,7 +243,7 @@ programa:.space 800		# espacio reservado para almacenar el codigo ensamblado del
 				# maquina virtual
 
 	.text
-	
+
 #########################################################################################
 #Planificación de registros Main
 #########################################################################################
@@ -488,14 +488,14 @@ inmediato:
 	
 	li $v0 4
 	la $a0 dollar
-	syscall	
+	syscall
 	andi $a0 $t1 0x001f0000
 	srl $a0 $a0 16
 	li $v0 1
-	syscall	
+	syscall
 	li $v0 4
 	la $a0 espacio
-	syscall	
+	syscall
 	andi $a0 $t1 0x0000ffff
 	sll $a0 $a0 16
 	sra $a0 $a0 16
