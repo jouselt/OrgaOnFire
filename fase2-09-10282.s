@@ -1,14 +1,15 @@
-##﻿# Archivo fase2-09-10282.s
+## Archivo fase2-09-10282.s
 # Descripcioin: lee el archivo programa.txt, pasa de letras a hexadecimales, se almacenan 
 # en programa el bloque de memoria
 # y luego son interpretadas como instrucciones.
 # autor: Jouselt Fernandez
-# Fecha: 15/12/2013
+# Fecha: 18/12/2013
 
 	.data
 
 buffer	:	.space 10
 fileName:	.asciiz "programa.txt"
+ask	:	.asciiz "indique nombre del archivo a compilar: "
 msg	:	.asciiz "Fin.. Por ahora... \n"
 err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
 		.ascii "o tal vez estas usando un archivo creado en linux, ver Nota en "
@@ -282,7 +283,7 @@ loop:	# leo de archivo, 10 caracteres cada vez
 	add $a0 $s0 $0
 	la $a1, buffer
 	li $a2 10
-	NOTA: #^^ para usar un archivo creado en linux hay que usar 9
+NOTA: #^^ para usar un archivo creado en linux hay que usar 9
 	li $v0 14
 	syscall
 	blez $v0 looby
@@ -291,19 +292,22 @@ loop:	# leo de archivo, 10 caracteres cada vez
 	la $t3 buffer
 loopLeerBuffer:	
 	
-	lb $t1, ($t3)	# Carga un caracter de la cadena en $t1
+	lb $t1, ($t3)		# Carga un caracter de la cadena en $t1
 	addi $t3, $t3, 1
 	beq $t1, 0, guardar	#Si llego al fin de palabra salto a guardar.
 	
-	bge $t1, 71, invalido #asumiendo que la letra es mayuscula
+	bge $t1, 103, invalido 	#para letras minusculas
+	bge $t1, 97, letraMinuscula
+	
+	bge $t1, 71, invalido 	#si la letra es mayuscula
 	bge $t1, 65, letra
 
-	bgt $t1, 57 invalido #verifico si es numero o letra
+	bgt $t1, 57 invalido #si es numero
 	bge $t1, 48, numero
 	
-	
+	#si pasa a este punto es invalido.
 invalido:
-	#anuncio el error por carácter inválido
+	#anuncio el error por caracter invalido
 	li $v0 4
 	la $a0 err
 	syscall
@@ -329,6 +333,13 @@ letra:
 	add $t4, $t4, $t1
 	b loopLeerBuffer
 
+letraMinuscula: 
+	#le resto 88 para tener el numero equivalente a la letra en 0x
+	addi $t1 $t1 -87
+	sll  $t4, $t4, 4
+	add $t4, $t4, $t1
+	b loopLeerBuffer
+	
 guardar:
 	#una vez se completa una palabra se guarda en memoria.
 	sll $t0 $t5 2
@@ -347,7 +358,8 @@ looby:
 	li $v0 16
 	move $a0 $s0
 	syscall
-	
+	b interpretarLobby
+	#ya no necesito imprimir, no borre el codigo por si es necesario luego.
 	#inicializamos t0 en programa para reusarlo como indice.
 	add $t0 $s1 $0
 	
@@ -360,7 +372,7 @@ imprimir:
 	addi $t0 $t0 4
 	li $v0 34
 	#syscall
-	#no es de mi interes imprimir el programa de nuevo
+
 	li $v0 4
 	la $a0 barraN
 	#syscall	
@@ -371,7 +383,7 @@ interpretarLobby:
 	li $v0 4
 	la $a0 barraN
 	syscall	
-
+	#inicializar 
 	la $t0 programa
 	la $s3 coop
 interpretar:
@@ -381,31 +393,30 @@ interpretar:
 	move $a0 $t1
 	li $v0 34
 	syscall
+	#imrpimir instruccion en 0x
 	
 	la $a0 espacio
 	li $v0 4
 	syscall
 	
+	#aplico la mascara para luego en $a0 guardar el coop
 	andi $a0 $t1 0xfc000000
-	srl $a0 $a0 26
-	mul $s4 $a0 12
-		
-	add $s4 $s4 $s3 
+	srl $a0 $a0 26 #es a0 por comodidad para imprimir si tengo que hacer debug
+	mul $s4 $a0 12	
+	add $s4 $s4 $s3
+	 
 	#en $s3 tengo la direccion del arreglo 
 	#en $s4 tengo la direccion del elemento
-	
+	beqz $s4 expansion #si es 0 directo a exp
+		
 	la $a0 espacio
 	li $v0 4
 	syscall
-	
+	syscall
 	lh $t3 0($s4)
-
-	la $a0 espacio
-	li $v0 4
-	syscall
 	#ahora tengo el formato de operaccion
-	beqz $s4 expansion
-	beq $t3 2 salto
+
+	beq $t3 2 salto 
 	beq $t3 1 inmediato
 	beq $t3 0 registro
 	
@@ -437,6 +448,7 @@ registro:
 	srl $a0 $a0 11
 	li $v0 1
 	syscall
+	
 	##registro fuente 1
 	li $v0 4
 	la $a0 dollar
@@ -463,11 +475,9 @@ expansion:
 	andi $a0 $t1 0x0000003f
 	sll $a0 $a0 3 #multiplico por 8
 	add $a0 $a0 $s5
+	
 	lw $a0 0($a0)
 	li $v0 4
-	syscall
-	li $v0 4
-	la $a0 espacio
 	syscall
 	
 	#registro destino
@@ -479,16 +489,16 @@ expansion:
 	li $v0 1
 	syscall
 	
+
 	#registro fuente 1		
 	li $v0 4
 	la $a0 dollar
-	#syscall		
+	syscall		
 	andi $a0 $t1 0x03e00000
 	srl $a0 $a0 21
 	li $v0 1
-	#syscall	
-	#tengo duda sobre instrucciones como addu que tienen dos tipos de direccionamiento
-	#de momento solo dejo la que usa solo dos registros y un inmediato.
+	syscall	
+	
 	#registro fuente 2
 	li $v0 4
 	la $a0 dollar
@@ -500,13 +510,13 @@ expansion:
 	li $v0 4
 	la $a0 espacio
 	syscall
-	
+
 	#shamt
 	andi $a0 $t1 0x000007c0
 	sll $a0 $a0 21
 	sra $a0 $a0 27
 	li $v0 1
-	syscall
+	#syscall
 b back
 
 inmediato:
