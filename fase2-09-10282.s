@@ -8,7 +8,7 @@
 	.data
 
 buffer	:	.space 10
-fileName:	.asciiz "programa.txt"
+fileName:	.space 20
 ask	:	.asciiz "indique nombre del archivo a compilar: "
 msg	:	.asciiz "Fin.. Por ahora... \n"
 err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
@@ -269,6 +269,26 @@ programa:.space 800		# espacio reservado para almacenar el codigo ensamblado
 
 #########################################################################################
 main:
+	li $v0 4
+	la $a0 ask
+	syscall
+	# indicar el nombre del programa.
+	li $v0 8
+	la $a0 fileName
+	li $a1 15
+	syscall
+	li $t0 -1
+	li $t2 10 #corresponde al valor decimal de un salto de linea
+	#no esta implementado en mars que en $v0 regrese el numero de caracteres leidos.
+noEOL:
+	addi $t0 $t0 1
+	lb $t1 fileName($t0)
+	bne $t1 $t2 noEOL
+
+	sb $0 fileName($t0)
+	#eliminar el /n al final.
+
+	
 	# abro archivo
 	li $v0 13
 	la $a0 fileName
@@ -455,10 +475,11 @@ registro:
 	syscall	
 	andi $a0 $t1 0x03e00000
 	srl $a0 $a0 21
+	
 	li $v0 1
 	syscall	
 	
-	#registro fuetne 2
+	#registro fuente 2
 	li $v0 4
 	la $a0 dollar
 	syscall
