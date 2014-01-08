@@ -233,10 +233,10 @@ _nor	:.asciiz "nor "
 .align 2
 registros:.space 128		# espacio reservado para los registros de la maquina virtual
 
-memoria:.space 1200		# espacio reservado para la memoria estatica de la maquina virtual	
+memoria:  .space 1200		# espacio reservado para la memoria estatica de la maquina virtual	
 
-fin_pila:.space 396		# espacio para implementar la pila de la maquina virtual
-pila:.word 0			# primera palabra disponible de la pila. La pila crece 
+fin_pila: .space 396		# espacio para implementar la pila de la maquina virtual
+pila:     .word 0		# primera palabra disponible de la pila. La pila crece 
 				# de direcciones altas a bajas
 
 
@@ -287,7 +287,6 @@ noEOL:
 
 	sb $0 fileName($t0)
 	#eliminar el /n al final.
-
 	
 	# abro archivo
 	li $v0 13
@@ -299,6 +298,7 @@ noEOL:
 	la $s1 programa
 	#inicializar t0
 	li $t0 0
+	
 loop:	# leo de archivo, 10 caracteres cada vez
 	add $a0 $s0 $0
 	la $a1, buffer
@@ -354,7 +354,7 @@ letra:
 	b loopLeerBuffer
 
 letraMinuscula: 
-	#le resto 88 para tener el numero equivalente a la letra en 0x
+	#le resto 87 para tener el numero equivalente a la letra en 0x
 	addi $t1 $t1 -87
 	sll  $t4, $t4, 4
 	add $t4, $t4, $t1
@@ -391,11 +391,11 @@ imprimir:
 	#si cambio el orden puedo imprimir el 0x0000000, por efecto visual no lo imprimo.
 	addi $t0 $t0 4
 	li $v0 34
-	#syscall
+	syscall
 
 	li $v0 4
 	la $a0 barraN
-	#syscall	
+	syscall	
 
 	b imprimir
 
@@ -450,43 +450,31 @@ back:
 	b interpretar
 
 registro:
-
+	
+	#registro destino
+	andi $a0 $t1 0x0000f800
+	srl $a0 $a0 11
+	
+	##registro fuente 1
+	andi $a1 $t1 0x03e00000
+	srl $a1 $a1 21
+	
+	#registro fuente 2
+	andi $a2 $t1 0x001f0000
+	srl $a2 $a2 16
+	
+	#shamt
+	andi $a3 $t1 0x000007c0
+	sll $a3 $a3 21
+	sra $a3 $a3 27
+	
 	lh $t3 2($s4)
 	bnez $t3 expansion
 	
-	#no hay codigo de exp
-	#instruccion
+	
+	#cargo la instruccion en $a0
 	lw $a0 4($s4)
-	li $v0 4
-	syscall
-	
-	#registro destino
-	li $v0 4
-	la $a0 dollar
-	syscall
-	andi $a0 $t1 0x0000f800
-	srl $a0 $a0 11
-	li $v0 1
-	syscall
-	
-	##registro fuente 1
-	li $v0 4
-	la $a0 dollar
-	syscall	
-	andi $a0 $t1 0x03e00000
-	srl $a0 $a0 21
-	
-	li $v0 1
-	syscall	
-	
-	#registro fuente 2
-	li $v0 4
-	la $a0 dollar
-	syscall
-	andi $a0 $t1 0x001f0000
-	srl $a0 $a0 16
-	li $v0 1
-	syscall	
+	jal loobyCoop
 
 b back
 
@@ -495,82 +483,37 @@ expansion:
 	la $s5 _Tabla0
 	andi $a0 $t1 0x0000003f
 	sll $a0 $a0 3 #multiplico por 8
-	add $a0 $a0 $s5
+	add $a0 $a0 $s5 
+	#en este punto tengo el apuntador a la pos de la instruccion
 	
-	lw $a0 0($a0)
-	li $v0 4
-	syscall
-	
-	#registro destino
-	li $v0 4
-	la $a0 dollar
-	syscall
-	andi $a0 $t1 0x0000f800
-	srl $a0 $a0 11
-	li $v0 1
-	syscall
-	
+	#cargo la instruccion en $a0
+	lw $a0 4($a0)
+	jal loobyCoop
 
-	#registro fuente 1		
-	li $v0 4
-	la $a0 dollar
-	syscall		
-	andi $a0 $t1 0x03e00000
-	srl $a0 $a0 21
-	li $v0 1
-	syscall	
-	
-	#registro fuente 2
-	li $v0 4
-	la $a0 dollar
-	syscall
-	andi $a0 $t1 0x001f0000
-	srl $a0 $a0 16
-	li $v0 1
-	syscall
-	li $v0 4
-	la $a0 espacio
-	syscall
-
-	#shamt
-	andi $a0 $t1 0x000007c0
-	sll $a0 $a0 21
-	sra $a0 $a0 27
-	li $v0 1
-	#syscall
 b back
 
 inmediato:
 
-	lw $a0 4($s4)
-	li $v0 4
-	syscall
 
-	li $v0 4
-	la $a0 dollar
-	syscall	
+	#registro base
 	andi $a0 $t1 0x03e00000
 	srl $a0 $a0 21
-	li $v0 1
-	syscall	
+
+	#registro destino
+	andi $a1 $t1 0x001f0000
+	srl $a1 $a1 16
 	
-	li $v0 4
-	la $a0 dollar
-	syscall
-	andi $a0 $t1 0x001f0000
-	srl $a0 $a0 16
-	li $v0 1
-	syscall
-	li $v0 4
-	la $a0 espacio
-	syscall
-	andi $a0 $t1 0x0000ffff
-	sll $a0 $a0 16
-	sra $a0 $a0 16
-	li $v0 1
-	syscall
+	#offset, desplazamiento
+	andi $a2 $t1 0x0000ffff
+	sll $a2 $a2 16
+	sra $a2 $a2 16
+	
+	
+	lw $a0 8($s4)
+	jal loobyCoop
 
 b back
+
 salto:
 	lw $a0 4($s4)
 	li $v0 4
@@ -587,6 +530,8 @@ salto:
 
 b back
 
+loobyCoop:
+	jr $a0
 
 fin:	
 	#anuncio el fin del programa.
@@ -599,123 +544,255 @@ fin:
 	syscall
 
 # Implementacion de las operaciones de la MLMV
-__No: jr $ra   	# No hace nada. Se usa para el caso de los codigos de operacion 
+__No: 
+	li $v0 4
+	la $a0 dollar
+	syscall
+	jr $ra   	# No hace nada. Se usa para el caso de los codigos de operacion 
 		# no implementados en la arquitectura y evitar tener que preguntar 
 		# si el coop existe o no en la maquina
 		
 __j:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __jal:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __beq:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __bne:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __blez:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __bgtz:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __addi:
+
+	sll $t0 $a0 2
+	lw $t0 registros($t0)
+
+	sll $t1 $a1 2
+	lw $t1 registros($t1)
+	
+	sll $t2 $a2 2
+	lw $t2 registros($t2)
+	
+	li $v0 4
+	la $a0 dollar
+	syscall
+	
 	jr $ra
 	
 __addiu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __slti:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sltiu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __andi:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __ori:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __xori:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __llo:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __lb:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __lw:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sb:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sh:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sw:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sll:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __srl:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sra:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sllv:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __srlv:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __srav:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __jr:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __jalr:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __mult:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __multu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __div:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __divu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __add:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 		
 __addu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __sub:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __subu:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __and:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __or:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 	
 __xor:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
 		
 __nor:
+	li $v0 4
+	la $a0 dollar
+	syscall
 	jr $ra
