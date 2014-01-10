@@ -378,8 +378,10 @@ looby:
 	li $v0 16
 	move $a0 $s0
 	syscall
-	b interpretarLobby
+	
 	#ya no necesito imprimir, no borre el codigo por si es necesario luego.
+	b interpretarLobby
+
 	#inicializamos t0 en programa para reusarlo como indice.
 	add $t0 $s1 $0
 	
@@ -388,6 +390,7 @@ imprimir:
 	
 	lw $a0 0($t0)
 	beqz $a0 interpretarLobby
+	
 	#si cambio el orden puedo imprimir el 0x0000000, por efecto visual no lo imprimo.
 	addi $t0 $t0 4
 	li $v0 34
@@ -398,47 +401,62 @@ imprimir:
 	syscall	
 
 	b imprimir
+	
+#########################################################################################
+#Planificacion de registros Main
+#########################################################################################
+#      $t0 se guarda el tipo de instruccion.
+#      $a0 paso de argumentos varios al syscall // contiene las palabras de "programa"
+#	   En un momento dado guarda el codigo de operacion.	
+#
+#      $a0 guarda el registro destino de la instruccion a ejecutar 
+#      $a1 guarda el registro fuente_1/ base  de la instruccion a ejecutar
+#      $a2 guarda el registro fuente_2  de la instruccion a ejecutar
+#      $a3 almacena el shamt/desplazamiento de la instruccion.
+#
+#      $v0 para el syscall // guarda la direccion de la instruccion para hacer el jal.
+#      $s0 Guarda la direccion de inicio del programa que se esta ejecutando
+#      $s1 contiene la instuccion que se esta ejecutando (equivalente al pc)
+#      $s3 Direccion del arreglo de coop
+#      $s4 Direccion de de la instruccion en coop
 
-interpretarLobby:
-	li $v0 4
-	la $a0 barraN
-	syscall	
+#########################################################################################
+
+interpretarLobby:	
 	#inicializar 
-	la $t0 programa
+	la $s0 programa
 	la $s3 coop
 interpretar:
 	
-	lw $t1 0($t0)
-	beqz $t1 fin
-	move $a0 $t1
+	lw $s1 0($s0)
+	beqz $s1 imprimirReg
+	
+	move $a0 $s1
 	li $v0 34
 	syscall
-	#imrpimir instruccion en 0x
 	
+	#imrpimir instruccion en 0x	
 	la $a0 espacio
 	li $v0 4
 	syscall
 	
 	#aplico la mascara para luego en $a0 guardar el coop
-	andi $a0 $t1 0xfc000000
-	srl $a0 $a0 26 #es a0 por comodidad para imprimir si tengo que hacer debug
+	andi $a0 $s1 0xfc000000
+	srl $a0 $a0 26 
 	mul $s4 $a0 12	
 	add $s4 $s4 $s3
 	 
 	#en $s3 tengo la direccion del arreglo 
 	#en $s4 tengo la direccion del elemento
 	beqz $s4 expansion #si es 0 directo a exp
-		
-	la $a0 espacio
-	li $v0 4
-	syscall
-	syscall
-	lh $t3 0($s4)
+
+
+	lh $t0 0($s4)
 	#ahora tengo el formato de operaccion
 
-	beq $t3 2 salto 
-	beq $t3 1 inmediato
-	beq $t3 0 registro
+	beq $t0 2 salto 
+	beq $t0 1 inmediato
+	beq $t0 0 registro
 	
 back:
 
@@ -446,34 +464,33 @@ back:
 	la $a0 barraN
 	syscall		
 	
-	addi $t0 $t0 4 #me muevo a la siguiente instrucion.
+	addi $s0 $s0 4 #me muevo a la siguiente instrucion.
 	b interpretar
 
 registro:
 	
 	#registro destino
-	andi $a0 $t1 0x0000f800
+	andi $a0 $s1 0x0000f800
 	srl $a0 $a0 11
 	
 	##registro fuente 1
-	andi $a1 $t1 0x03e00000
+	andi $a1 $s1 0x03e00000
 	srl $a1 $a1 21
 	
 	#registro fuente 2
-	andi $a2 $t1 0x001f0000
+	andi $a2 $s1 0x001f0000
 	srl $a2 $a2 16
 	
 	#shamt
-	andi $a3 $t1 0x000007c0
+	andi $a3 $s1 0x000007c0
 	sll $a3 $a3 21
 	sra $a3 $a3 27
 	
 	lh $t3 2($s4)
 	bnez $t3 expansion
-	
-	
-	#cargo la instruccion en $a0
-	lw $a0 4($s4)
+		
+	#cargo la instruccion en $v0
+	lw $v0 4($s4)
 	jal loobyCoop
 
 b back
@@ -481,40 +498,39 @@ b back
 expansion:
 
 	la $s5 _Tabla0
-	andi $a0 $t1 0x0000003f
+	andi $a0 $s1 0x0000003f
 	sll $a0 $a0 3 #multiplico por 8
 	add $a0 $a0 $s5 
 	#en este punto tengo el apuntador a la pos de la instruccion
 	
 	#cargo la instruccion en $a0
-	lw $a0 4($a0)
+	lw $v0 4($a0)
 	jal loobyCoop
 
 b back
 
 inmediato:
 
-
-	#registro base
-	andi $a0 $t1 0x03e00000
-	srl $a0 $a0 21
-
 	#registro destino
-	andi $a1 $t1 0x001f0000
-	srl $a1 $a1 16
+	andi $a0 $s1 0x001f0000
+	srl $a0 $a0 16
+	
+	#registro base
+	andi $a1 $s1 0x03e00000
+	srl $a1 $a1 21
 	
 	#offset, desplazamiento
-	andi $a2 $t1 0x0000ffff
-	sll $a2 $a2 16
-	sra $a2 $a2 16
+	andi $a3 $s1 0x0000ffff
+	sll $a3 $a3 16
+	sra $a3 $a3 16
 	
-	
-	lw $a0 8($s4)
+	lw $v0 8($s4)
 	jal loobyCoop
 
 b back
 
 salto:
+
 	lw $a0 4($s4)
 	li $v0 4
 	syscall
@@ -523,15 +539,23 @@ salto:
 	li $v0 4
 	syscall
 	
-	andi $a0 $t1 0x03ffffff
+	andi $a0 $s1 0x03ffffff
 	sll $a0 $a0 2
 	li $v0 34
 	syscall	
+	
+	lw $v0 8($s4)
+	jal loobyCoop
 
 b back
 
 loobyCoop:
-	jr $a0
+	jr $v0
+	
+	
+imprimirReg:
+
+	b fin
 
 fin:	
 	#anuncio el fin del programa.
@@ -554,245 +578,448 @@ __No:
 		
 __j:
 	li $v0 4
-	la $a0 dollar
+	la $a0 _j
 	syscall
 	jr $ra
 	
 __jal:
 	li $v0 4
-	la $a0 dollar
+	la $a0 _jal
 	syscall
 	jr $ra
 	
 __beq:
 	li $v0 4
-	la $a0 dollar
+	la $a0 _beq
 	syscall
 	jr $ra
 	
 __bne:
 	li $v0 4
-	la $a0 dollar
+	la $a0 _bne
 	syscall
 	jr $ra
 	
 __blez:
 	li $v0 4
-	la $a0 dollar
+	la $a0 _blez
 	syscall
 	jr $ra
 	
 __bgtz:
+	la $a0 _bgtz
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
 	
 __addi:
 
-	sll $t0 $a0 2
-	lw $t0 registros($t0)
-
-	sll $t1 $a1 2
-	lw $t1 registros($t1)
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
 	
-	sll $t2 $a2 2
-	lw $t2 registros($t2)
+	add $a1 $a1 $a3
 	
+	sll $a0 $a0 2
+	sw $a1 registros($a0)
+	
+	la $a0 _addi
 	li $v0 4
-	la $a0 dollar
 	syscall
-	
 	jr $ra
+
 	
 __addiu:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	la $a0 _addiu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
+		
 __slti:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _slti
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __sltiu:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sltiu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __andi:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	la $a0 _andi
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __ori:
+
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	la $a0 _ori
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __xori:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	la $a0 _bgtz
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __llo:
-	li $v0 4
-	la $a0 dollar
-	syscall
-	jr $ra
-	
+
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	jr $ra	
 __lb:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _lb
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __lw:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _lw
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __sb:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sb
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __sh:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sh
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __sw:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sw
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __sll:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sll
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __srl:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _srl
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __sra:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sra
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __sllv:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sllv
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
-	
+
 __srlv:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _srlv
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
 	
 __srav:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _srav
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __jr:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _jr
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __jalr:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _jalr
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __mult:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _mult
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __multu:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _multu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __div:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _div
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __divu:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _divu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __add:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _add
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 		
 __addu:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _addu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __sub:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _sub
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __subu:
+
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+	
+	la $a0 _subu
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __and:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _and
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __or:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	la $a0 _or
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 	
 __xor:
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+
+	la $a0 _xor
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
 		
 __nor:
+	#obtiene el contenido de los registros fuente 1 y 2
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	nor $t1 $a2 $a1
+	
+	sll $a0 $a0 2
+	sw $t1 registros($a0)
+	
+	la $a0 _nor
 	li $v0 4
-	la $a0 dollar
 	syscall
 	jr $ra
+
