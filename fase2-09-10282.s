@@ -1,15 +1,14 @@
 ## Archivo fase2-09-10282.s
 # Descripcioin: lee el archivo programa.txt, pasa de letras a hexadecimales, se almacenan 
-# en programa el bloque de memoria
-# y luego son interpretadas como instrucciones.
+# en programa el bloque de memoria y luego son interpretadas como instrucciones. 
 # autor: Jouselt Fernandez
-# Fecha: 18/12/2013
+# Fecha: 11/11/2014
 
 	.data
 
 buffer	:	.space 10
 fileName:	.space 20
-ask	:	.asciiz "indique nombre del archivo a compilar: "
+ask	:	.asciiz "\nIndique nombre del archivo a compilar: "
 msg	:	.asciiz "Fin.. Por ahora... \n"
 err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
 		.ascii "o tal vez estas usando un archivo creado en linux, ver Nota en "
@@ -379,6 +378,8 @@ looby:
 	move $a0 $s0
 	syscall
 	
+	la $t9 pila
+	sw $t0 registros + 120
 	#ya no necesito imprimir, no borre el codigo por si es necesario luego.
 	b interpretarLobby
 
@@ -409,14 +410,14 @@ imprimir:
 #      $a0 paso de argumentos varios al syscall // contiene las palabras de "programa"
 #	   En un momento dado guarda el codigo de operacion.	
 #
-#      $a0 guarda el registro destino de la instruccion a ejecutar 
-#      $a1 guarda el registro fuente_1/ base  de la instruccion a ejecutar
-#      $a2 guarda el registro fuente_2  de la instruccion a ejecutar
+#      $a0 pasa el numero de registro destino de la instruccion a ejecutar
+#      $a1 pasa el numero de registro fuente_1/ base  de la instruccion a ejecutar
+#      $a2 pasa el numero de registro fuente_2  de la instruccion a ejecutar
 #      $a3 almacena el shamt/desplazamiento de la instruccion.
 #
 #      $v0 para el syscall // guarda la direccion de la instruccion para hacer el jal.
-#      $s0 Guarda la direccion de inicio del programa que se esta ejecutando
-#      $s1 contiene la instuccion que se esta ejecutando (equivalente al pc)
+#      $s0 Guarda la direccion de inicio de "pc" 
+#      $s1 contiene la instuccion que se esta ejecutando 
 #      $s3 Direccion del arreglo de coop
 #      $s4 Direccion de de la instruccion en coop
 
@@ -425,17 +426,18 @@ imprimir:
 interpretarLobby:	
 	#inicializar 
 	la $s0 programa
+	sw $s0 contador
 	la $s3 coop
 interpretar:
 	
-	lw $s1 0($s0)
+	lw $s1 0($s0) 
+	#por convencion mia $s0 tiene la direccion de la proxima instruccion a ejecutar.
 	beqz $s1 imprimirReg
 	
+	#imprimiedo la instruccion en Hexadecimal
 	move $a0 $s1
 	li $v0 34
 	syscall
-	
-	#imrpimir instruccion en 0x	
 	la $a0 espacio
 	li $v0 4
 	syscall
@@ -450,21 +452,23 @@ interpretar:
 	#en $s4 tengo la direccion del elemento
 	beqz $s4 expansion #si es 0 directo a exp
 
-
 	lh $t0 0($s4)
 	#ahora tengo el formato de operaccion
 
 	beq $t0 2 salto 
 	beq $t0 1 inmediato
 	beq $t0 0 registro
+	b fin #imposible que caiga aca.
 	
 back:
 
 	li $v0 4
 	la $a0 barraN
 	syscall		
-	
-	addi $s0 $s0 4 #me muevo a la siguiente instrucion.
+	#flech
+	lw $s0 contador
+	addi $t0 $s0 4 #muevo el pc a la siguiente instrucion.
+	sw $t0 contador
 	b interpretar
 
 registro:
@@ -472,14 +476,22 @@ registro:
 	#registro destino
 	andi $a0 $s1 0x0000f800
 	srl $a0 $a0 11
+	#copiando en a0 el contenido del registro.
+	sll $a0 $a0 2
+	lw $a0 registros($a0)
 	
-	##registro fuente 1
+	#registro fuente 1
 	andi $a1 $s1 0x03e00000
 	srl $a1 $a1 21
+	
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
 	
 	#registro fuente 2
 	andi $a2 $s1 0x001f0000
 	srl $a2 $a2 16
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
 	
 	#shamt
 	andi $a3 $s1 0x000007c0
@@ -488,10 +500,11 @@ registro:
 	
 	lh $t3 2($s4)
 	bnez $t3 expansion
-		
+
 	#cargo la instruccion en $v0
 	lw $v0 4($s4)
 	jal loobyCoop
+	
 
 b back
 
@@ -503,7 +516,7 @@ expansion:
 	add $a0 $a0 $s5 
 	#en este punto tengo el apuntador a la pos de la instruccion
 	
-	#cargo la instruccion en $a0
+	#cargo la instruccion en $v0
 	lw $v0 4($a0)
 	jal loobyCoop
 
@@ -530,32 +543,57 @@ inmediato:
 b back
 
 salto:
+	#toma los primeros 4 bits del "pc"
+	lw $s0 contador	
+	andi $t0 $s0 0xf0000000	
+	
+	#obtengo la direccion de salto y la multiplico por 4
+	andi $t1 $s1 0x03ffffff
+	sll $t1 $t1 2
+	#la junto los primeros 4 bits del pc con la direccion desplazada.
+	or $a0 $t0 $t1
 
-	lw $a0 4($s4)
-	li $v0 4
-	syscall
-	
-	la $a0 espacio
-	li $v0 4
-	syscall
-	
-	andi $a0 $s1 0x03ffffff
-	sll $a0 $a0 2
-	li $v0 34
-	syscall	
-	
 	lw $v0 8($s4)
 	jal loobyCoop
 
 b back
 
 loobyCoop:
+
 	jr $v0
 	
-	
 imprimirReg:
-
-	b fin
+	#imprime el contenido de los registros en hexadecimal.
+	la $t0 registros
+	li $t1 -1
+	li $t2 31
+	
+sig:	li $v0 4
+	la $a0 dollar
+	syscall
+	
+	add $a0 $t0 $0
+	li $v0 1
+	syscall
+	
+	li $v0 4
+	la $a0 espacio
+	syscall	
+	
+	lw $a0 ($t0)
+	li $v0 34
+	syscall
+	
+	la $a0 barraN
+	li $v0 4
+	syscall
+	
+	addi $t0 $t0 4
+	addi $t1 $t1 1
+	#si no he llegado al 31 sigo imprimiendo.	
+	bne $t1 $t2 sig
+	#al llegar al final salto a terminar el programa.
+#	b fin
 
 fin:	
 	#anuncio el fin del programa.
@@ -570,48 +608,151 @@ fin:
 # Implementacion de las operaciones de la MLMV
 __No: 
 	li $v0 4
-	la $a0 dollar
+	la $a0 barraN
 	syscall
-	jr $ra   	# No hace nada. Se usa para el caso de los codigos de operacion 
+	jr $ra  # No hace nada. Se usa para el caso de los codigos de operacion 
 		# no implementados en la arquitectura y evitar tener que preguntar 
 		# si el coop existe o no en la maquina
 		
 __j:
+	
+	sw $a0 contador
+
 	li $v0 4
 	la $a0 _j
 	syscall
 	jr $ra
 	
 __jal:
+	#cargo el pc y lo guardo en el registro 31 ($ra)
+	lw $t0 contador
+	sw $t0 registros+124 
+	
+	#cambio el pc con la nueva direccion.
+	sw $a0 contador
+	
 	li $v0 4
 	la $a0 _jal
 	syscall
 	jr $ra
 	
 __beq:
+	#pasando el registro de la virtual a $t1 para usarlo
+	sll $t1 $a1 2
+	lw $t1 registros($t1)
+	#pasando el registro de la virtual a $t2 para comparar
+	sll $t2 $a2 2
+	lw $t2 registros($t2)
+	
+	#si el contenido de los registros son iguales
+	beq $t1 $t2 siB
+noB:	b finBranch #no son iguales me salgo.
+siB:	#recordando que en $a3 esta la cantidad de palabras a saltar.
+	sll $t3 $a3 2 #multiplico por 4 para tener la cantidad de palabras.
+	lw $t0 contador 
+	add $t0 $t0 $a3
+	#finalmente sumamos (cantidad de palabras)*4 al pc 
+	sw $t0 contador
+	
+finBranch:	
+	#########################################
+	#imprimiendo la operacion por referencia.
 	li $v0 4
 	la $a0 _beq
 	syscall
+	#########################################
 	jr $ra
 	
 __bne:
+
+	#pasando el registro de la virtual a $a1 para usarlo
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+	#pasando el registro de la virtual a $a2 para comparar
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	#si el contenido de los registros son iguales
+		
+	beq $a1 $a2 siB2
+noB2:		
+b finBranch2
+siB2:	
+	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
+	li $t2 2
+	mult $a3 $t2
+	#uso mult y no sll por los casos negativos.
+	add $s0 $s0 $a3
+	#entonces estamos sumando la cantidad de palabras al pc 
+	
+finBranch2:	
+	#########################################
+	#imprimiendo la operacion por referencia.
 	li $v0 4
 	la $a0 _bne
 	syscall
+	#########################################
 	jr $ra
-	
 __blez:
+
+	#pasando el registro de la virtual a $a1 para usarlo
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+	#pasando el registro de la virtual a $a2 para comparar
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	#si el contenido de los registros son iguales
+		
+	beq $a1 $a2 siB3
+noB3:		
+b finBranch3
+siB3:	
+	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
+	li $t2 2
+	mult $a3 $t2
+	#uso mult y no sll por los casos negativos.
+	add $s0 $s0 $a3
+	#entonces estamos sumando la cantidad de palabras al pc 
+	
+finBranch3:	
+	#########################################
+	#imprimiendo la operacion por referencia.
 	li $v0 4
 	la $a0 _blez
 	syscall
+	#########################################
 	jr $ra
-	
 __bgtz:
-	la $a0 _bgtz
-	li $v0 4
-	syscall
-	jr $ra
+
+	#pasando el registro de la virtual a $a1 para usarlo
+	sll $a1 $a1 2
+	lw $a1 registros($a1)
+	#pasando el registro de la virtual a $a2 para comparar
+	sll $a2 $a2 2
+	lw $a2 registros($a2)
+
+	#si el contenido de los registros son iguales
+		
+	beq $a1 $a2 siB4
+noB4:		
+b finBranch4
+siB4:	
+	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
+	li $t2 2
+	mult $a3 $t2
+	#uso mult y no sll por los casos negativos.
+	add $s0 $s0 $a3
+	#entonces estamos sumando la cantidad de palabras al pc 
 	
+finBranch4:
+	#########################################
+	#imprimiendo la operacion por referencia.
+	li $v0 4
+	la $a0 _bgtz
+	syscall
+	#########################################
+	jr $ra
 __addi:
 
 	sll $a1 $a1 2
@@ -627,7 +768,6 @@ __addi:
 	syscall
 	jr $ra
 
-	
 __addiu:
 	sll $a1 $a1 2
 	lw $a1 registros($a1)
@@ -635,6 +775,7 @@ __addiu:
 	la $a0 _addiu
 	li $v0 4
 	syscall
+	
 	jr $ra
 
 		
@@ -648,6 +789,7 @@ __slti:
 	la $a0 _slti
 	li $v0 4
 	syscall
+#slti 
 	jr $ra
 
 __sltiu:
@@ -685,7 +827,7 @@ __xori:
 	sll $a1 $a1 2
 	lw $a1 registros($a1)
 
-	la $a0 _bgtz
+	la $a0 _xori
 	li $v0 4
 	syscall
 	jr $ra
@@ -714,7 +856,7 @@ __lb:
 __lw:
 	sll $a1 $a1 2
 	lw $a1 registros($a1)
-
+ 
 	sll $a2 $a2 2
 	lw $a2 registros($a2)
 
