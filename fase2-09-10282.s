@@ -9,13 +9,14 @@
 buffer	:	.space 10
 fileName:	.space 20
 ask	:	.asciiz "\nIndique nombre del archivo a compilar: "
-msg	:	.asciiz "Fin.. Por ahora... \n"
+msg	:	.asciiz "Fin. \n"
 err   	:	.ascii "\nError solo se permiten caracteres hexadecimales [0..F]  "
 		.ascii "o tal vez estas usando un archivo creado en linux, ver Nota en "
 		.ascii "linea 51"
 barraN	:	.asciiz "\n"
 espacio	:	.asciiz " "
 dollar	:	.asciiz " $"
+msgReg	:	.asciiz "Registros\n"
 
 ##########################################################################################
 # Tabla de codigos de operacion
@@ -70,9 +71,8 @@ coop:
 	.word 0 0 __No 		# coop 21
 	.word 0 0 __No 		# coop 22
 	.word 0 0 __No 		# coop 23
-	.half 1 0		# coop 24 llo
-	.word _llo __llo
-	.word 0 0 0 		# coop 25 lhi
+	.word 0 0 __No		# coop 24 llo
+	.word 0 0 __No		# coop 25 lhi
 	.word 0 0 __No 		# coop 26
 	.word 0 0 __No 		# coop 27
 	.word 0 0 __No 		# coop 28
@@ -379,7 +379,7 @@ looby:
 	syscall
 	
 	la $t9 pila
-	sw $t0 registros + 120
+	sw $t0 registros + 116
 	#ya no necesito imprimir, no borre el codigo por si es necesario luego.
 	b interpretarLobby
 
@@ -476,22 +476,23 @@ registro:
 	#registro destino
 	andi $a0 $s1 0x0000f800
 	srl $a0 $a0 11
-	#copiando en a0 el contenido del registro.
+	#copiando en a0 el la direccion del registro.
 	sll $a0 $a0 2
-	lw $a0 registros($a0)
+	la $a0 registros($a0)
 	
 	#registro fuente 1
 	andi $a1 $s1 0x03e00000
 	srl $a1 $a1 21
 	
 	sll $a1 $a1 2
-	lw $a1 registros($a1)
+	la $a1 registros($a1)
 	
 	#registro fuente 2
 	andi $a2 $s1 0x001f0000
 	srl $a2 $a2 16
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
+
+	sll $a2 $a2 2
+	la $a2 registros($a2)
 	
 	#shamt
 	andi $a3 $s1 0x000007c0
@@ -502,23 +503,22 @@ registro:
 	bnez $t3 expansion
 
 	#cargo la instruccion en $v0
-	lw $v0 4($s4)
-	jal loobyCoop
-	
+	lw $t0 4($s4)
+	jalr $t0
 
 b back
 
 expansion:
 
 	la $s5 _Tabla0
-	andi $a0 $s1 0x0000003f
-	sll $a0 $a0 3 #multiplico por 8
-	add $a0 $a0 $s5 
-	#en este punto tengo el apuntador a la pos de la instruccion
+	andi $t0 $s1 0x0000003f
+	sll $t0 $t0 3 #multiplico por 8
+	add $t0 $t0 $s5 
+	#en este punto tengo el apuntador de la instruccion
 	
-	#cargo la instruccion en $v0
-	lw $v0 4($a0)
-	jal loobyCoop
+	#cargo la instruccion en $v0 y me preparao para el salto.
+	lw $t0 4($t0)
+	jalr $t0
 
 b back
 
@@ -527,18 +527,22 @@ inmediato:
 	#registro destino
 	andi $a0 $s1 0x001f0000
 	srl $a0 $a0 16
+	sll $a0 $a0 2
+	la $a0 registros($a0)	
 	
 	#registro base
 	andi $a1 $s1 0x03e00000
 	srl $a1 $a1 21
+	sll $a1 $a1 2
+	la $a1 registros($a1)
 	
 	#offset, desplazamiento
 	andi $a3 $s1 0x0000ffff
 	sll $a3 $a3 16
 	sra $a3 $a3 16
 	
-	lw $v0 8($s4)
-	jal loobyCoop
+	lw $t0 8($s4)
+	jalr $t0
 
 b back
 
@@ -550,29 +554,34 @@ salto:
 	#obtengo la direccion de salto y la multiplico por 4
 	andi $t1 $s1 0x03ffffff
 	sll $t1 $t1 2
+
 	#la junto los primeros 4 bits del pc con la direccion desplazada.
 	or $a0 $t0 $t1
 
-	lw $v0 8($s4)
-	jal loobyCoop
+	lw $t0 8($s4)
+	jalr $t0
 
 b back
 
-loobyCoop:
 
-	jr $v0
+	
 	
 imprimirReg:
+
+	li $v0 4
+	la $a0 msgReg
+	syscall
+
 	#imprime el contenido de los registros en hexadecimal.
 	la $t0 registros
-	li $t1 -1
-	li $t2 31
+	li $t1 0
+	li $t2 32
 	
 sig:	li $v0 4
 	la $a0 dollar
 	syscall
 	
-	add $a0 $t0 $0
+	add $a0 $t1 $0
 	li $v0 1
 	syscall
 	
@@ -637,20 +646,18 @@ __jal:
 	jr $ra
 	
 __beq:
-	#pasando el registro de la virtual a $t1 para usarlo
-	sll $t1 $a1 2
-	lw $t1 registros($t1)
-	#pasando el registro de la virtual a $t2 para comparar
-	sll $t2 $a2 2
-	lw $t2 registros($t2)
+	#pasando el contenido del registro a $t1 para usarlo
+	lw $t1 0($a1)
+	#pasando el contenido del registro a $t2 para comparar
+	lw $t2 0($a2)
 	
-	#si el contenido de los registros son iguales
+	#si el contenido de ambos registros es igual salta a siB
 	beq $t1 $t2 siB
 noB:	b finBranch #no son iguales me salgo.
 siB:	#recordando que en $a3 esta la cantidad de palabras a saltar.
 	sll $t3 $a3 2 #multiplico por 4 para tener la cantidad de palabras.
 	lw $t0 contador 
-	add $t0 $t0 $a3
+	add $t0 $t0 $t3
 	#finalmente sumamos (cantidad de palabras)*4 al pc 
 	sw $t0 contador
 	
@@ -665,25 +672,20 @@ finBranch:
 	
 __bne:
 
-	#pasando el registro de la virtual a $a1 para usarlo
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-	#pasando el registro de la virtual a $a2 para comparar
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
-	#si el contenido de los registros son iguales
-		
-	beq $a1 $a2 siB2
-noB2:		
-b finBranch2
-siB2:	
-	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
-	li $t2 2
-	mult $a3 $t2
-	#uso mult y no sll por los casos negativos.
-	add $s0 $s0 $a3
-	#entonces estamos sumando la cantidad de palabras al pc 
+	#pasando el contenido del registro a $t1 para usarlo
+	lw $t1 0($a1)
+	#pasando el contenido del registro a $t2 para comparar
+	lw $t2 0($a2)
+	
+	#si el contenido de ambos registros es diferete salta a siB
+	bne $t1 $t2 siB2
+noB2:	b finBranch2 #no son iguales me salgo.
+siB2:	#recordando que en $a3 esta la cantidad de palabras a saltar.
+	sll $t3 $a3 2 #multiplico por 4 para tener la cantidad de palabras.
+	lw $t0 contador 
+	add $t0 $t0 $t3
+	#finalmente sumamos (cantidad de palabras)*4 al pc 
+	sw $t0 contador
 	
 finBranch2:	
 	#########################################
@@ -695,25 +697,18 @@ finBranch2:
 	jr $ra
 __blez:
 
-	#pasando el registro de la virtual a $a1 para usarlo
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-	#pasando el registro de la virtual a $a2 para comparar
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
-	#si el contenido de los registros son iguales
-		
-	beq $a1 $a2 siB3
-noB3:		
-b finBranch3
-siB3:	
-	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
-	li $t2 2
-	mult $a3 $t2
-	#uso mult y no sll por los casos negativos.
-	add $s0 $s0 $a3
-	#entonces estamos sumando la cantidad de palabras al pc 
+	#pasando el contenido del registro a $t1 para usarlo
+	lw $t1 0($a1)
+	
+	#si el contenido del registro es menor que zero salta a sib
+	blez $t1 siB3
+noB3:	b finBranch3 #no son iguales me salgo.
+siB3:	#recordando que en $a3 esta la cantidad de palabras a saltar.
+	sll $t3 $a3 2 #multiplico por 4 para tener la cantidad de palabras.
+	lw $t0 contador 
+	add $t0 $t0 $t3
+	#finalmente sumamos (cantidad de palabras)*4 al pc 
+	sw $t0 contador
 	
 finBranch3:	
 	#########################################
@@ -724,26 +719,18 @@ finBranch3:
 	#########################################
 	jr $ra
 __bgtz:
-
-	#pasando el registro de la virtual a $a1 para usarlo
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-	#pasando el registro de la virtual a $a2 para comparar
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
-	#si el contenido de los registros son iguales
-		
-	beq $a1 $a2 siB4
-noB4:		
-b finBranch4
-siB4:	
-	#recordando que $s0 es el pc y en $a3 esta la cantidad de numeros a saltar.
-	li $t2 2
-	mult $a3 $t2
-	#uso mult y no sll por los casos negativos.
-	add $s0 $s0 $a3
-	#entonces estamos sumando la cantidad de palabras al pc 
+	#pasando el contenido del registro a $t1 para usarlo
+	lw $t1 0($a1)
+	
+	#si el contenido del registro es mayor a zero salta a sib4
+	bgtz $t1 siB4
+noB4:	b finBranch4 #no son iguales me salgo.
+siB4:	#recordando que en $a3 esta la cantidad de palabras a saltar.
+	sll $t3 $a3 2 #multiplico por 4 para tener la cantidad de palabras.
+	lw $t0 contador 
+	add $t0 $t0 $t3
+	#finalmente sumamos (cantidad de palabras)*4 al pc 
+	sw $t0 contador
 	
 finBranch4:
 	#########################################
@@ -755,68 +742,61 @@ finBranch4:
 	jr $ra
 __addi:
 
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-	
-	add $a1 $a1 $a3
-	
-	sll $a0 $a0 2
-	sw $a1 registros($a0)
+	lw $t1 0($a1)
+	add $t0 $t1 $a3
+	sw $t0 0($a0)
 	
 	la $a0 _addi
 	li $v0 4
 	syscall
 	jr $ra
 
-__addiu:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
+__addiu:	 
+	lw $t1 0($a1)
+	addu $t0 $t1 $a3
+	sw $t0 0($a0)
+	
 	la $a0 _addiu
 	li $v0 4
 	syscall
 	
 	jr $ra
-
-		
-__slti:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	
+__slti: 
+	lw $t1 0($a1)
+	slt $t0 $t1 $a3
+	sw $t0 0($a0)
+ 
 	la $a0 _slti
 	li $v0 4
 	syscall
-#slti 
 	jr $ra
 
 __sltiu:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	 
+	lw $t1 0($a1)
+	sltu $t0 $t1 $a3
+	sw $t0 0($a0)
 
 	la $a0 _sltiu
 	li $v0 4
 	syscall
 	jr $ra
 
-__andi:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
+__andi:	 
+	lw $t1 0($a1)
+	and $t1 $t1 $a3
+	sw $t1 0($a0)
+	
 	la $a0 _andi
 	li $v0 4
 	syscall
 	jr $ra
 
 __ori:
-
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
+	lw $t1 0($a1)
+	or $t1 $t1 $a3
+	sw $t1 0($a0)
 
 	la $a0 _ori
 	li $v0 4
@@ -824,29 +804,20 @@ __ori:
 	jr $ra
 
 __xori:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
+ 	lw $t1 0($a1)
+	xor $t1 $t1 $a3
+	sw $t1 0($a0)
 
 	la $a0 _xori
 	li $v0 4
 	syscall
 	jr $ra
 
-__llo:
-
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
-	jr $ra	
-__lb:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+__lb:	 
+	lw $t1 0($a1)
+	#memoria+inmediato+contenido del registro base
+	addu $t4 $a3 $t1
+	lb $t1 memoria+0($t4)
 
 	la $a0 _lb
 	li $v0 4
@@ -854,23 +825,22 @@ __lb:
 	jr $ra
 
 __lw:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
- 
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	 
+	lw $t1 0($a1)
+	#memoria+inmediato+contenido del registro base
+	addu $t4 $a3 $t1
+	lw $t1 memoria+0($t4)
+	
 	la $a0 _lw
 	li $v0 4
 	syscall
 	jr $ra
 
 __sb:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	#memoria+inmediato+contenido del registro base
+	addu $t4 $a3 $t1
+	sb $t1 memoria+0($t4)
 
 	la $a0 _sb
 	li $v0 4
@@ -878,23 +848,22 @@ __sb:
 	jr $ra
 
 __sh:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	lw $t1 0($a1)
+	#memoria+inmediato+contenido del registro base
+	addu $t4 $a3 $t1
+	sh $t1 memoria+0($t4)
+	
 	la $a0 _sh
 	li $v0 4
 	syscall
 	jr $ra
 
 __sw:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	 
+	lw $t1 0($a1)
+	#memoria+inmediato+contenido del registro base
+	addu $t4 $a3 $t1
+	sw $t1 memoria+0($t4)
 
 	la $a0 _sw
 	li $v0 4
@@ -902,49 +871,40 @@ __sw:
 	jr $ra
 
 __sll:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	lw $t1 0($a1)
+	sllv $t1 $t1 $a3
+	sw $t1 0($a0)
+	
 	la $a0 _sll
 	li $v0 4
 	syscall
 	jr $ra
 
 __srl:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	lw $t1 0($a1)
+	srlv $t1 $t1 $a3	
+	sw $t1 0($a0)
+		
 	la $a0 _srl
 	li $v0 4
 	syscall
 	jr $ra
 
-	
 __sra:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	srav $t1 $t1 $a3
+	sw $t1 0($a0)
 
 	la $a0 _sra
 	li $v0 4
 	syscall
 	jr $ra
 
-	
 __sllv:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	sllv $t0 $t1 $t2
+	sw $t3 0($a0)
 
 	la $a0 _sllv
 	li $v0 4
@@ -952,11 +912,10 @@ __sllv:
 	jr $ra
 
 __srlv:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	srlv $t0 $t1 $t2
+	sw $t3 0($a0)
 
 	la $a0 _srlv
 	li $v0 4
@@ -964,51 +923,44 @@ __srlv:
 	jr $ra
 	
 __srav:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	srav $t0 $t1 $t2
+	sw $t3 0($a0)
 
 	la $a0 _srav
 	li $v0 4
 	syscall
 	jr $ra
 
-	
 __jr:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	lw $t1 0($a1)
+	sw $t1 contador
+	
+		
 	la $a0 _jr
 	li $v0 4
 	syscall
 	jr $ra
-
 	
 __jalr:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	
+	lw $t2 contador
+	sw $t2 registros+124
+	lw $t1 0($a1)
+	sw $t1 contador
 
 	la $a0 _jalr
 	li $v0 4
 	syscall
 	jr $ra
-
 	
-__mult:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+__mult:	
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	mul $t0 $t1 $t2
+	sw $t0 0($a0)
+	
 	la $a0 _mult
 	li $v0 4
 	syscall
@@ -1016,11 +968,10 @@ __mult:
 
 	
 __multu:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	mulu $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _multu
 	li $v0 4
@@ -1029,11 +980,10 @@ __multu:
 
 	
 __div:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	div $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _div
 	li $v0 4
@@ -1042,11 +992,10 @@ __div:
 
 	
 __divu:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	divu $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _divu
 	li $v0 4
@@ -1055,12 +1004,12 @@ __divu:
 
 	
 __add:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	 
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	add $t0 $t1 $t2
+	sw $t0 ($a0)
+	
 	la $a0 _add
 	li $v0 4
 	syscall
@@ -1068,51 +1017,44 @@ __add:
 
 		
 __addu:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
 
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	addu $t0 $t1 $t2
+	sw $t0 0($a0)
+	
 	la $a0 _addu
 	li $v0 4
 	syscall
 	jr $ra
-
-	
 __sub:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	 
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	sub $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _sub
 	li $v0 4
 	syscall
 	jr $ra
 
-	
-__subu:
+__subu:	
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	subu $t0 $t1 $t2
+	sw $t0 0($a0)
 
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-	
 	la $a0 _subu
 	li $v0 4
 	syscall
 	jr $ra
-
 	
 __and:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	and $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _and
 	li $v0 4
@@ -1121,25 +1063,21 @@ __and:
 
 	
 __or:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	or $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _or
 	li $v0 4
 	syscall
 	jr $ra
 
-	
-__xor:
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
-
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
+__xor:	 
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	xor $t0 $t1 $t2
+	sw $t0 0($a0)
 
 	la $a0 _xor
 	li $v0 4
@@ -1149,19 +1087,14 @@ __xor:
 		
 __nor:
 	#obtiene el contenido de los registros fuente 1 y 2
-	sll $a1 $a1 2
-	lw $a1 registros($a1)
+	 
+	lw $t1 0($a1)
+	lw $t2 0($a2)
+	nor $t0 $t1 $t2
+	sw $t0 0($a0)
 
-	sll $a2 $a2 2
-	lw $a2 registros($a2)
-
-	nor $t1 $a2 $a1
-	
-	sll $a0 $a0 2
-	sw $t1 registros($a0)
-	
 	la $a0 _nor
 	li $v0 4
 	syscall
 	jr $ra
-
+	
