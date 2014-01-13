@@ -624,10 +624,8 @@ __jal:
 	#cargo el pc y lo guardo en el registro 31 ($ra)
 	lw $t0 contador
 	sw $t0 registros+124 
-	
 	#cambio el pc con la nueva direccion.
 	sw $a0 contador
-	
 	jr $ra
 	
 __beq:
@@ -653,7 +651,6 @@ __bne:
 __blez:
 	#pasando el contenido del registro a $t1 para usarlo
 	lw $t1 0($a1)
-	
 	#si el contenido del registro es menor que zero salta a sib
 	blez $t1 siB
 	b finBranch #no son iguales me salgo.
@@ -677,25 +674,21 @@ finBranch:
 	jr $ra
 	
 __addi:
-
 	lw $t1 0($a1)
 	add $t0 $t1 $a3
 	sw $t0 0($a0)
-	
 	jr $ra
 
 __addiu:	 
 	lw $t1 0($a1)
 	addu $t0 $t1 $a3
 	sw $t0 0($a0)
-	
 	jr $ra
 	
 __slti: 
 	lw $t1 0($a1)
 	slt $t0 $t1 $a3
 	sw $t0 0($a0)
- 
 	jr $ra
 
 __sltiu:
@@ -703,44 +696,39 @@ __sltiu:
 	lw $t1 0($a1)
 	sltu $t0 $t1 $a3
 	sw $t0 0($a0)
-
 	jr $ra
 
 __andi:	 
 	lw $t1 0($a1)
 	and $t1 $t1 $a3
 	sw $t1 0($a0)
-	
 	jr $ra
 
 __ori:
 	lw $t1 0($a1)
-	or $t1 $t1 $a3
-	sw $t1 0($a0)
-
+	or $t0 $t1 $a3
+	sw $t0 0($a0)
 	jr $ra
 
 __xori:
  	lw $t1 0($a1)
-	xor $t1 $t1 $a3
-	sw $t1 0($a0)
-
+	xor $t0 $t1 $a3
+	sw $t0 0($a0)
 	jr $ra
 
 __lb:	 
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	sll $t3 $a3 2
+	#sll $t3 $a3 2
 	addu $t4 $a3 $t1
 	lb $t1 memoria+0($t4)
 	sb $t1 ($a2)
 	jr $ra
 
 __lw:
-	 
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	sll $t3 $a3 2
+	#sll $t3 $a3 2 asumo que la direccion esta alineada.
 	addu $t4 $a3 $t1
 	lw $t1 memoria+0($t4)
 	sb $t1 ($a0)
@@ -750,50 +738,42 @@ __lw:
 __sb:
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	sll $t3 $a3 2
-	addu $t4 $t3 $t1
+	#sll $t3 $a3 2
+	addu $t4 $a3 $t1
 	sb $t1 memoria+0($t4)
-
-
 	jr $ra
 
 __sh:
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	sll $t3 $a3 2
-	addu $t4 $t3 $t1
+	#sll $t3 $a3 2
+	addu $t4 $a3 $t1
 	sh $t1 memoria+0($t4)
-	
 	jr $ra
 
 __sw:
-	 
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
 	addu $t4 $a3 $t1
 	sw $t1 memoria+0($t4)
-
 	jr $ra
 
 __sll:
 	lw $t1 0($a1)
 	sllv $t1 $t1 $a3
 	sw $t1 0($a0)
-	
 	jr $ra
 
 __srl:
 	lw $t1 0($a1)
 	srlv $t0 $t1 $a3	
 	sw $t0 0($a0)
-		
 	jr $ra
 
 __sra:
 	lw $t1 0($a1)
 	srav $t0 $t1 $a3
 	sw $t0 0($a0)
-
 	jr $ra
 
 __sllv:
@@ -801,7 +781,6 @@ __sllv:
 	lw $t2 0($a2)
 	sllv $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
 __srlv:
@@ -809,7 +788,6 @@ __srlv:
 	lw $t2 0($a2)
 	srlv $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 	
 __srav:
@@ -817,13 +795,11 @@ __srav:
 	lw $t2 0($a2)
 	srav $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
 __jr:
 	lw $t1 0($a1)
 	sw $t1 contador
-		
 	jr $ra
 	
 __jalr:	
@@ -831,7 +807,6 @@ __jalr:
 	sw $t2 registros+124
 	lw $t1 0($a1)
 	sw $t1 contador
-
 	jr $ra
 	
 __mult:	
@@ -839,62 +814,48 @@ __mult:
 	lw $t2 0($a2)
 	mul $t0 $t1 $t2
 	sw $t0 0($a0)
-	
 	jr $ra
-
 	
 __multu:
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	mulu $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
-	
 __div:
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	div $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
-
 	
 __divu:
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	divu $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
-	
 __add:
-	 
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	add $t0 $t1 $t2
 	sw $t0 ($a0)
-	
 	jr $ra
 
-		
 __addu:
-
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	addu $t0 $t1 $t2
 	sw $t0 0($a0)
-	
 	jr $ra
-__sub:
-	 
+
+__sub:	 
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	sub $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
 __subu:	
@@ -909,7 +870,6 @@ __and:
 	lw $t2 0($a2)
 	and $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 	
 __or:
@@ -917,7 +877,6 @@ __or:
 	lw $t2 0($a2)
 	or $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
 __xor:	 
@@ -925,17 +884,13 @@ __xor:
 	lw $t2 0($a2)
 	xor $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 
-		
 __nor:
-	#obtiene el contenido de los registros fuente 1 y 2
-	 
+	#obtiene el contenido de los registros fuente 1 y 2	 
 	lw $t1 0($a1)
 	lw $t2 0($a2)
 	nor $t0 $t1 $t2
 	sw $t0 0($a0)
-
 	jr $ra
 	
