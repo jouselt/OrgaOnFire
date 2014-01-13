@@ -283,7 +283,7 @@ noEOL:
 	addi $t0 $t0 1
 	lb $t1 fileName($t0)
 	bne $t1 $t2 noEOL
-
+	#asi que me toco usar esta implementacion poco eficiente.
 	sb $0 fileName($t0)
 	#eliminar el /n al final.
 	
@@ -302,7 +302,7 @@ loop:	# leo de archivo, 10 caracteres cada vez
 	add $a0 $s0 $0
 	la $a1, buffer
 	li $a2 10
-NOTA: #^^ para usar un archivo creado en linux hay que usar 9
+NOTA:	#^^ para usar un archivo creado en linux hay que usar 9
 	li $v0 14
 	syscall
 	blez $v0 looby
@@ -406,20 +406,20 @@ imprimir:
 #########################################################################################
 #Planificacion de registros Main
 #########################################################################################
-#      $t0 se guarda el tipo de instruccion.
-#      $a0 paso de argumentos varios al syscall // contiene las palabras de "programa"
+#      	$t0 se guarda el tipo de instruccion.
+#      	$a0 paso de argumentos varios al syscall // contiene las palabras de "programa"
 #	   En un momento dado guarda el codigo de operacion.	
 #
-#      $a0 pasa el numero de registro destino de la instruccion a ejecutar
-#      $a1 pasa el numero de registro fuente_1/ base  de la instruccion a ejecutar
-#      $a2 pasa el numero de registro fuente_2  de la instruccion a ejecutar
-#      $a3 almacena el shamt/desplazamiento de la instruccion.
-#
-#      $v0 para el syscall // guarda la direccion de la instruccion para hacer el jal.
-#      $s0 Guarda la direccion de inicio de "pc" 
-#      $s1 contiene la instuccion que se esta ejecutando 
-#      $s3 Direccion del arreglo de coop
-#      $s4 Direccion de de la instruccion en coop
+#      	$a0 pasa el numero de registro destino de la instruccion a ejecutar
+#      	$a1 pasa el numero de registro fuente_1/ base  de la instruccion a ejecutar
+#      	$a2 pasa el numero de registro fuente_2  de la instruccion a ejecutar
+#	$a3 almacena el shamt/desplazamiento de la instruccion.
+#	en las funciones $t0..$t3 son usados para almacenar los contenidos de $a0..$a3
+#      	$v0 para el syscall // guarda la direccion de la instruccion para hacer el jal.
+#      	$s0 Guarda la direccion de inicio de "pc" 
+#      	$s1 contiene la instuccion que se esta ejecutando 
+#      	$s3 Direccion del arreglo de coop
+#      	$s4 Direccion de de la instruccion en coop
 
 #########################################################################################
 
@@ -433,14 +433,15 @@ interpretar:
 	lw $s1 0($s0) 
 	#por convencion mia $s0 tiene la direccion de la proxima instruccion a ejecutar.
 	beqz $s1 imprimirReg
-	
+
+	##en esta fase no es necesario imprimir la instruccion.
 	#imprimiedo la instruccion en Hexadecimal
-	move $a0 $s1
-	li $v0 34
-	syscall
-	la $a0 espacio
-	li $v0 4
-	syscall
+	#move $a0 $s1
+	#li $v0 34
+	#syscall
+	#la $a0 espacio
+	#li $v0 4
+	#syscall
 	
 	#aplico la mascara para luego en $a0 guardar el coop
 	andi $a0 $s1 0xfc000000
@@ -458,7 +459,7 @@ interpretar:
 	beq $t0 2 salto 
 	beq $t0 1 inmediato
 	beq $t0 0 registro
-	b fin #imposible que caiga aca.
+	b fin #imposible que caiga aca. but just in case..
 	
 back:
 
@@ -481,14 +482,15 @@ registro:
 	
 	#registro fuente 1
 	andi $a1 $s1 0x03e00000
-	srl $a1 $a1 19
-	#en $a1 tengo el numero de registro >>21 <<2
+	srl $a1 $a1 19 #>>21 <<2
+	#en $a1 tengo el numero de registro 
 	#lo multiplico por 4 para tener el apuntador al registro virtual.
 	la $a1 registros($a1)
 	
 	#registro fuente 2
 	andi $a2 $s1 0x001f0000
 	srl $a2 $a2 14
+	#>>16 para tener el numero y <<2 para tener el indice de registro.
 	la $a2 registros($a2)
 	
 	#shamt
@@ -512,8 +514,9 @@ expansion:
 	sll $t0 $t0 3 #multiplico por 8
 	add $t0 $t0 $s5 
 	#en este punto tengo el apuntador de la instruccion
-	#cargo la instruccion en $v0 y me preparo para llamar la funcion.
+	#cargo la instruccion en $t0 y hago la llamada a la funcion.
 	lw $t0 4($t0)
+	#recordando que en $a0..$a3 estan los argumentos.
 	jalr $t0
 
 b back
@@ -546,21 +549,15 @@ salto:
 	#toma los primeros 4 bits del "pc"
 	lw $s0 contador	
 	andi $t0 $s0 0xf0000000	
-	
 	#obtengo la direccion de salto y la multiplico por 4
 	andi $t1 $s1 0x03ffffff
 	sll $t1 $t1 2
-
 	#la junto los primeros 4 bits del pc con la direccion desplazada.
 	or $a0 $t0 $t1
-
 	lw $t0 8($s4)
 	jalr $t0
 
 b back
-
-
-	
 	
 imprimirReg:
 
@@ -644,7 +641,7 @@ __beq:
 	b finBranch #no son iguales me salgo.
 	
 __bne:
-	#pasando el contenido del registro a $t1 para usarlo
+	#pasando el contenido del registro a $t1 para comparar
 	lw $t1 0($a1)
 	#pasando el contenido del registro a $t2 para comparar
 	lw $t0 0($a0)
@@ -685,19 +682,12 @@ __addi:
 	add $t0 $t1 $a3
 	sw $t0 0($a0)
 	
-	la $a0 _addi
-	li $v0 4
-	syscall
 	jr $ra
 
 __addiu:	 
 	lw $t1 0($a1)
 	addu $t0 $t1 $a3
 	sw $t0 0($a0)
-	
-	la $a0 _addiu
-	li $v0 4
-	syscall
 	
 	jr $ra
 	
@@ -706,9 +696,6 @@ __slti:
 	slt $t0 $t1 $a3
 	sw $t0 0($a0)
  
-	la $a0 _slti
-	li $v0 4
-	syscall
 	jr $ra
 
 __sltiu:
@@ -717,9 +704,6 @@ __sltiu:
 	sltu $t0 $t1 $a3
 	sw $t0 0($a0)
 
-	la $a0 _sltiu
-	li $v0 4
-	syscall
 	jr $ra
 
 __andi:	 
@@ -727,9 +711,6 @@ __andi:
 	and $t1 $t1 $a3
 	sw $t1 0($a0)
 	
-	la $a0 _andi
-	li $v0 4
-	syscall
 	jr $ra
 
 __ori:
@@ -737,9 +718,6 @@ __ori:
 	or $t1 $t1 $a3
 	sw $t1 0($a0)
 
-	la $a0 _ori
-	li $v0 4
-	syscall
 	jr $ra
 
 __xori:
@@ -747,54 +725,45 @@ __xori:
 	xor $t1 $t1 $a3
 	sw $t1 0($a0)
 
-	la $a0 _xori
-	li $v0 4
-	syscall
 	jr $ra
 
 __lb:	 
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
+	sll $t3 $a3 2
 	addu $t4 $a3 $t1
 	lb $t1 memoria+0($t4)
-
-	la $a0 _lb
-	li $v0 4
-	syscall
+	sb $t1 ($a2)
 	jr $ra
 
 __lw:
 	 
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
+	sll $t3 $a3 2
 	addu $t4 $a3 $t1
 	lw $t1 memoria+0($t4)
+	sb $t1 ($a0)
 	
-	la $a0 _lw
-	li $v0 4
-	syscall
 	jr $ra
 
 __sb:
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	addu $t4 $a3 $t1
+	sll $t3 $a3 2
+	addu $t4 $t3 $t1
 	sb $t1 memoria+0($t4)
 
-	la $a0 _sb
-	li $v0 4
-	syscall
+
 	jr $ra
 
 __sh:
 	lw $t1 0($a1)
 	#memoria+inmediato+contenido del registro base
-	addu $t4 $a3 $t1
+	sll $t3 $a3 2
+	addu $t4 $t3 $t1
 	sh $t1 memoria+0($t4)
 	
-	la $a0 _sh
-	li $v0 4
-	syscall
 	jr $ra
 
 __sw:
@@ -804,9 +773,6 @@ __sw:
 	addu $t4 $a3 $t1
 	sw $t1 memoria+0($t4)
 
-	la $a0 _sw
-	li $v0 4
-	syscall
 	jr $ra
 
 __sll:
@@ -814,9 +780,6 @@ __sll:
 	sllv $t1 $t1 $a3
 	sw $t1 0($a0)
 	
-	la $a0 _sll
-	li $v0 4
-	syscall
 	jr $ra
 
 __srl:
@@ -824,9 +787,6 @@ __srl:
 	srlv $t0 $t1 $a3	
 	sw $t0 0($a0)
 		
-	la $a0 _srl
-	li $v0 4
-	syscall
 	jr $ra
 
 __sra:
@@ -834,9 +794,6 @@ __sra:
 	srav $t0 $t1 $a3
 	sw $t0 0($a0)
 
-	la $a0 _sra
-	li $v0 4
-	syscall
 	jr $ra
 
 __sllv:
@@ -845,9 +802,6 @@ __sllv:
 	sllv $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _sllv
-	li $v0 4
-	syscall
 	jr $ra
 
 __srlv:
@@ -856,9 +810,6 @@ __srlv:
 	srlv $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _srlv
-	li $v0 4
-	syscall
 	jr $ra
 	
 __srav:
@@ -867,18 +818,12 @@ __srav:
 	srav $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _srav
-	li $v0 4
-	syscall
 	jr $ra
 
 __jr:
 	lw $t1 0($a1)
 	sw $t1 contador
 		
-	la $a0 _jr
-	li $v0 4
-	syscall
 	jr $ra
 	
 __jalr:	
@@ -887,9 +832,6 @@ __jalr:
 	lw $t1 0($a1)
 	sw $t1 contador
 
-	la $a0 _jalr
-	li $v0 4
-	syscall
 	jr $ra
 	
 __mult:	
@@ -898,9 +840,6 @@ __mult:
 	mul $t0 $t1 $t2
 	sw $t0 0($a0)
 	
-	la $a0 _mult
-	li $v0 4
-	syscall
 	jr $ra
 
 	
@@ -910,9 +849,6 @@ __multu:
 	mulu $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _multu
-	li $v0 4
-	syscall
 	jr $ra
 
 	
@@ -922,9 +858,6 @@ __div:
 	div $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _div
-	li $v0 4
-	syscall
 	jr $ra
 
 	
@@ -934,9 +867,6 @@ __divu:
 	divu $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _divu
-	li $v0 4
-	syscall
 	jr $ra
 
 	
@@ -947,9 +877,6 @@ __add:
 	add $t0 $t1 $t2
 	sw $t0 ($a0)
 	
-	la $a0 _add
-	li $v0 4
-	syscall
 	jr $ra
 
 		
@@ -960,9 +887,6 @@ __addu:
 	addu $t0 $t1 $t2
 	sw $t0 0($a0)
 	
-	la $a0 _addu
-	li $v0 4
-	syscall
 	jr $ra
 __sub:
 	 
@@ -971,9 +895,6 @@ __sub:
 	sub $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _sub
-	li $v0 4
-	syscall
 	jr $ra
 
 __subu:	
@@ -981,10 +902,6 @@ __subu:
 	lw $t2 0($a2)
 	subu $t0 $t1 $t2
 	sw $t0 0($a0)
-
-	la $a0 _subu
-	li $v0 4
-	syscall
 	jr $ra
 	
 __and:
@@ -993,11 +910,7 @@ __and:
 	and $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _and
-	li $v0 4
-	syscall
 	jr $ra
-
 	
 __or:
 	lw $t1 0($a1)
@@ -1005,9 +918,6 @@ __or:
 	or $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _or
-	li $v0 4
-	syscall
 	jr $ra
 
 __xor:	 
@@ -1016,9 +926,6 @@ __xor:
 	xor $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _xor
-	li $v0 4
-	syscall
 	jr $ra
 
 		
@@ -1030,8 +937,5 @@ __nor:
 	nor $t0 $t1 $t2
 	sw $t0 0($a0)
 
-	la $a0 _nor
-	li $v0 4
-	syscall
 	jr $ra
 	
