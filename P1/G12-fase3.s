@@ -5,7 +5,7 @@
 # Fecha: 11/11/2014
 
 	.data
-
+memoria	:  	.space 1200		# espacio reservado para la memoria estatica de la maquina virtual
 buffer	:	.space 10
 fileName:	.space 20
 ask	:	.asciiz "\nIndique nombre del archivo a compilar: "
@@ -232,7 +232,7 @@ _nor	:.asciiz "nor "
 .align 2
 registros:.space 128		# espacio reservado para los registros de la maquina virtual
 
-memoria:  .space 1200		# espacio reservado para la memoria estatica de la maquina virtual	
+	
 
 fin_pila: .space 396		# espacio para implementar la pila de la maquina virtual
 pila:     .word 0		# primera palabra disponible de la pila. La pila crece 
