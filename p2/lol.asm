@@ -14,10 +14,13 @@
 
 # Define a process control block for each program
 	.kdata
-p1pcb:	.space 20	# Room for a0, v0, t0, t1 and PC (offsets 0, 4, 8, 12, 16)
-p2pcb:	.space 20	# Ditto
+p1pcb:	.space 32	# Room for a0, v0, t0, t1 and PC (offsets 0, 4, 8, 12, 16)
+p2pcb:	.space 32	# Ditto
+p3pcb:	.space 32	# Ditto
+p4pcb:	.space 32	# Ditto
+index: 	.word 0
 
-curpcb:	.word 0		# Offset to the current PCB, either 0 or 20
+curpcb:	.word 0		# Offset to the current PCB, either 0, 32, 64, 96
 saveat:	.word 0		# Saved value of $at register
 
 # This is the entry point for both the syscall handler and
@@ -43,26 +46,42 @@ exit:
 
 # Here is the system call 100 handler
 syscallhdlr:
-	bne $v0, 100, exit	# Exit if it isn't syscall 100
+	beq $v0, 100, syscall_100	# Exit if it isn't syscall 100
+	beq $v0, 102, syscall_102	# Exit if it isn't syscall 102
+	beq $v0, 110, syscall_110
+	beq $v0, 110, syscall_200
+	b exit
 
+syscall_100:
 	la $k0, p1pcb
-	sw $a0, 16($k0)		# Save the 1st instruction address for prog1
-	sw $0, 12($k0)		# and fill the other PCB values as initially 0
-	sw $0, 8($k0)
-	sw $0, 4($k0)
+	lw $k1 index
+	add $k0 $k1 $k0
 	sw $0, 0($k0)
-
-	la $k0, p2pcb
-	sw $a1, 16($k0)		# Save the 1st instruction address for prog2
-	sw $0, 12($k0)		# and fill the other PCB values as initially 0
-	sw $0, 8($k0)
 	sw $0, 4($k0)
-	sw $0, 0($k0)
+	sw $0, 8($k0)
+	sw $0 12($k0)
+	sw $0 16($k0)
+	sw $0 20($k0)
+	sw $0 24($k0)
+	sw $a0 28($k0)
+	
+	addi $k1 $k1 32
+	bne $k1 128 skip1
+	add $k1 $0 $0
+	
+skip1:
+	sw $k1 index
 
+	b finale
+
+syscall_102:
 	la $k0, 0xFFFF0013	# Now enable the clock ticks from the Digial Lab Sim
 	li $k1, 1
 	sb $k1, ($k0)
 	b restore		# and context switch into program 1
+
+syscall_110:
+syscall_200:
 
 
 # Here is the clock tick interrupt handler
@@ -75,14 +94,16 @@ inthandler:			# First thing, save the program's registers
 	sw $t0, 8($k0)
 	sw $t1, 12($k0)
 	mfc0 $k1, $14
-	sw $k1, 16($k0)		# Save the old program counter from the EPC register
+	sw $k1, 28($k0)		# Save the old program counter from the EPC register
 
 				# With that program's state safely stored away, we can
 				# switch our understanding of which is the current program.
 
 	lw $k0, curpcb
-	li $k1, 20
-	sub $k0, $k1, $k0	# k0 = 20 - curpcb, i.e. 20 => 0, or 0 => 20
+	addi $k0, $k0 32	# k0 = 20 - curpcb, i.e. 20 => 0, or 0 => 20
+	bne $k0 128 skip
+	add $k0 $0 $0
+skip:
 	sw $k0, curpcb
 
 				# Now we know which is the current program, we can
@@ -96,9 +117,17 @@ restore:			# Restore registers and reset procesor state
 	lw $v0, 4($k0)
 	lw $t0, 8($k0)
 	lw $t1, 12($k0)
-	lw $k1, 16($k0)		# Copy the old program counter into the EPC register
+	lw $k1, 28($k0)		# Copy the old program counter into the EPC register
 	mtc0 $k1, $14
+	b saltito
+finale:
 
+        mfc0 $k0, $14           # Get EPC register value
+        addiu $k0, $k0, 4       # Skip syscall instruction by skipping
+                                # forward by one instruction
+        mtc0 $k0, $14           # Reset the EPC register
+saltito:
+        
 	.set noat
 	lw $k1, saveat          # Reload and
 	move $at, $k1           # restore $at

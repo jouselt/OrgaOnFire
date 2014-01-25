@@ -34,8 +34,8 @@ saveat:	.word 0		# Saved value of $at register
 	.ktext	0x80000180
 handler:
 	.set noat
-	move $k1, $at
-	sw $k1, saveat          # Save $at
+	move $s1, $at
+	sw $s1, saveat          # Save $at
 	.set at
 
 	mfc0 $k0, $13           # Copy the Cause register
