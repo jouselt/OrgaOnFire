@@ -23,11 +23,11 @@ index: 	.word 0
 
 curpcb:	.word 0		# Offset to the current PCB, either 0, 36, 72, 108
 saveat:	.word 0		# Saved value of $at register
-text:	.asciiz " ocurrio una interrupcion por presionar la tecla Q... finalizacion del programa "
-text1:	.asciiz " interrupcion por teclado ocurrio en el main 1 "
-text2:	.asciiz " interrupcion por teclado ocurrio en el main 2 "
-text3:	.asciiz " interrupcion por teclado ocurrio en el main 3 "
-text4:	.asciiz " interrupcion por teclado ocurrio en el main 4 "
+text:	.asciiz "\nocurrio una interrupcion por presionar la tecla Q... finalizacion del programa "
+text1:	.asciiz "\ninterrupcion por teclado ocurrio en el main 1 "
+text2:	.asciiz "\ninterrupcion por teclado ocurrio en el main 2 "
+text3:	.asciiz "\ninterrupcion por teclado ocurrio en el main 3 "
+text4:	.asciiz "\ninterrupcion por teclado ocurrio en el main 4 "
 
 # This is the entry point for both the syscall handler and
 # the clock tick interrupt handler.
@@ -101,11 +101,55 @@ syscall_102:
 	li $k1, 1
 	sb $k1, ($k0)
 	b restore		# and context switch into program 1
-# Here is the system call 110 handler
+
+
 syscall_110:
+ # Here is the system call 110 handler
+	la $k0, p1pcb
+	lw $k1, curpcb
+	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
+	addi $k0 $k0 -36
+	sw $a0, 0($k0)		# Save the a0, v0, t0 and t1 registers
+	sw $v0, 4($k0)
+	sw $t0, 8($k0)
+	sw $t1, 12($k0)
+	sw $a1, 16($k0)
+	sw $a2, 20($k0)
+	sw $a3, 24($k0)
+	sw $v1, 28($k0)
+
+	
+	mfc0 $k1 $14
+	addi $k1 $k1 4
+	sw $k1 32($k0)	
+	
+	lw $k0, curpcb
+	addi $k0, $k0 36	# k0 = 36 + curpcb
+				
+	bne $k0 144 skip2	# if (k0 == 144) => k0 = 0
+	add $k0 $0 $0
+skip2:
+	sw $k0, curpcb		# now the current pcblock is updaded 
+				# so we know which is the current program, we can
+				# restore that program's state
+ 	b finale
+	
+ syscall_200:
+	la $k0, p1pcb
+	lw $k1, curpcb
+	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
+	sw $0   0($k0)		#set all the values to 0
+	sw $0   4($k0)
+	sw $0   8($k0)
+	sw $0  12($k0)
+	sw $0  16($k0)
+	sw $0  20($k0)
+	sw $0  24($k0)
+	sw $0  28($k0)
+	sw $a0 32($k0)
 	b finale
-syscall_200:
-# Here is the system call 200 handler
+ # Here is the system call 200 handler
+
 
 # Here is the clock tick interrupt handler
 inthandler:			# First thing, save the program's registers
@@ -191,7 +235,8 @@ tecla_Q:
 	la $a0, text		# Print out the message
 	li $v0, 4
 	syscall
-	la $k0, curpcb
+	lw $k0, curpcb
+#	addi $k0 $k0 -1
 	beq $k0, 0, interrupcion_main_1		# la interrupcion ocurrio en el main 1
 	beq $k0, 36, interrupcion_main_2	# la interrupcion ocurrio en el main 2
 	beq $k0, 72, interrupcion_main_3	# la interrupcion ocurrio en el main 3
