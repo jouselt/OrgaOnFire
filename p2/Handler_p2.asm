@@ -23,7 +23,7 @@ index: 	.word 0
 
 curpcb:	.word 0		# Offset to the current PCB, either 0, 36, 72, 108
 saveat:	.word 0		# Saved value of $at register
-
+text:   .asciiz 	"\n \tProgram ended by user. \n"
 # This is the entry point for both the syscall handler and
 # the clock tick interrupt handler.
 	.ktext	0x80000180
@@ -41,17 +41,37 @@ handler:
 				# simply call exit()
 	beqz $k0, inthandler
 	beq $k0, 8, syscallhdlr
+	lw   $k0, 0xffff0000     # Checking Receiver control ((bit 1==1) => new input).
+	andi $k0, $k0, 0x1
+	bnez $k0, keyboard
+
 exit:
 	li $v0, 10		# Can't deal with it, exit()
 	syscall
 
+keyboard:
 
+# Leemos el Receiver Data para obtener el caracter
+# presionado.
+	lw   $k0, 0xffff0004 	
+	beq  $k0, 0x71, tecla_Q #(q)
+	beq  $k0, 0x51, tecla_Q #(Q)	
+	eret
+
+tecla_Q:
+	la $a0, text		# Print out the message
+	li $v0, 4
+	syscall
+	b exit
+	
 syscallhdlr:
 	beq $v0, 100, syscall_100	# goto the syscall 100 handler
 	beq $v0, 102, syscall_102	# goto the syscall 102 handler
 	beq $v0, 110, syscall_110	# goto the syscall 110 handler
-	beq $v0, 110, syscall_200	# goto the syscall 200 handler
+	beq $v0, 200, syscall_200	# goto the syscall 200 handler
+	
 	b exit				# Exit if it isn't a syscall we can handle 
+	
 # Here is the syscall 100 handler
 syscall_100:
 	la $k0, p1pcb
@@ -68,7 +88,7 @@ syscall_100:
 	sw $a0 32($k0)
 	addi $k1 $k1 36	 	
 #we don't need this, provded that the user enter up to 4 mains.	
-#therefore the maximum value index can take is 144
+#hence the maximum value index can take is 144
 #	bne $k1 144 skip1
 #	add $k1 $0 $0
 #skip1:
@@ -81,11 +101,53 @@ syscall_102:
 	li $k1, 1
 	sb $k1, ($k0)
 	b restore		# and context switch into program 1
-# Here is the system call 110 handler
-syscall_110:
 
-	b restore 
+syscall_110:
+# Here is the system call 110 handler
+	la $k0, p1pcb
+	lw $k1, curpcb
+	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
+	addi $k0 $k0 -36
+	sw $a0, 0($k0)		# Save the a0, v0, t0 and t1 registers
+	sw $v0, 4($k0)
+	sw $t0, 8($k0)
+	sw $t1, 12($k0)
+	sw $a1, 16($k0)
+	sw $a2, 20($k0)
+	sw $a3, 24($k0)
+	sw $v1, 28($k0)
+
+	
+	mfc0 $k1 $14
+	addi $k1 $k1 4
+	sw $k1 32($k0)	
+	
+	lw $k0, curpcb
+	addi $k0, $k0 36	# k0 = 36 + curpcb
+				
+	bne $k0 144 skip2	# if (k0 == 144) => k0 = 0
+	add $k0 $0 $0
+skip2:
+	sw $k0, curpcb		# now the current pcblock is updaded 
+				# so we know which is the current program, we can
+				# restore that program's state
+	
+	b finale
+	
 syscall_200:
+	la $k0, p1pcb
+	lw $k1, curpcb
+	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
+	sw $0   0($k0)		#set all the values to 0
+	sw $0   4($k0)
+	sw $0   8($k0)
+	sw $0  12($k0)
+	sw $0  16($k0)
+	sw $0  20($k0)
+	sw $0  24($k0)
+	sw $0  28($k0)
+	sw $a0 32($k0)
+	b finale
 # Here is the system call 200 handler
 
 # Here is the clock tick interrupt handler
@@ -101,20 +163,21 @@ inthandler:			# First thing, save the program's registers
 	sw $a2, 20($k0)
 	sw $a3, 24($k0)
 	sw $v1, 28($k0)
-	
+
 	mfc0 $k1, $14
 	sw $k1, 32($k0)		# Save the old program counter from the EPC register
 				# With that program's state safely stored away, we can
 				# switch our understanding of which is the current program.
+ending:
 	lw $k0, curpcb
 	lw $k1 index 
 	addi $k0, $k0 36	# k0 = 36 + curpcb
-				#meanin th current pcblock is updaded 
+				
 	bne $k0 144 skip	# if (k0 == 144) => k0 = 0
 	add $k0 $0 $0
 skip:
-	sw $k0, curpcb
-				# Now we know which is the current program, we can
+	sw $k0, curpcb		# now the current pcblock is updaded 
+				# so we know which is the current program, we can
 				# restore that program's state
 		
 restore:			# Restore registers and reset procesor state
@@ -130,10 +193,10 @@ restore:			# Restore registers and reset procesor state
 	lw $a3, 24($k0)
 	lw $v1, 28($k0)
 	lw $k1, 32($k0)		# Copy the old program counter into the EPC register
-	beqz $k1 next
-	mtc0 $k1, $14
-	b saltito
-next: 
+	beqz $k1 hup		# if it's 0 we won't chage de epc
+	mtc0 $k1, $14		
+	b jump
+hup: 
 	lw $k1 curpcb
 	addi $k1 $k1 36
 	bne $k1 144 nxt
@@ -143,18 +206,16 @@ nxt:
 	b restore
 
 finale:
-
         mfc0 $k0, $14           # Get EPC register value
         addiu $k0, $k0, 4       # Skip syscall instruction by skipping
                                 # forward by one instruction
         mtc0 $k0, $14           # Reset the EPC register
-saltito:
-        
+jump: 
 	.set noat
 	lw $k1, saveat          # Reload and
 	move $at, $k1           # restore $at
 	.set at
-
+	
 	mtc0 $0, $13            # Clear Cause register
 	mfc0 $k0, $12           # 
 	ori  $k0, 0x1           # Re-enable interrupts

@@ -17,9 +17,9 @@
 
 	.data
 m1msg:	 .asciiz "\nIn main1, the counter is "
-m2msg:	 .asciiz "\nIn main2, the counter is "
-m3msg:	 .asciiz "\nIn main3, the counter is "
-m4msg:	 .asciiz "\nIn main4, the counter is "
+m2msg:	 .asciiz "\nIn main2, the counter is \t "
+m3msg:	 .asciiz "\nIn main3, the counter is \t \t"
+m4msg:	 .asciiz "\nIn main4, the counter is \t \t \t"
 never:	 .asciiz "We should never get here\n"
 
 	.text
@@ -39,7 +39,7 @@ main:
 	
 	li $v0, 100
 	la $a0 main4
-#	syscall	
+	syscall	
 	
 	li $v0 102
 	syscall
@@ -51,31 +51,40 @@ main:
 	syscall
 
 
-main1:	li $t0, 0		# Our counter starts at 0
-m1loop:	la $a0, m1msg		# Print out the message
+main1:	
+	li $t0, 100		# Our counter starts at 0
+m1loop:	
+	la $a0, m1msg		# Print out the message
 	li $v0, 4
 	syscall
+	
 	move $a0, $t0		# Print out the counter
 	li $v0, 1
 	syscall
 
 	addi $t0, $t0, 1	# Increment counter by 1
-	b m1loop		# and loop back to print the counter again
+	b m1loop
 
 
-main2:	li $t0, 10000		# Our counter starts at 10000
-m2loop:	la $a0, m2msg		# Print out the message
+main2:	
+	li $t0, 2000		# Our counter starts at 10000
+m2loop:	
+	la $a0, m2msg		# Print out the message
 	li $v0, 4
 	syscall
 	move $a0, $t0		# Print out the counter
 	li $v0, 1
 	syscall
 	addi $t0, $t0, 2	# Increment counter by 2
-	b m2loop		# and loop back to print the counter again
+	bne $t0 20042 m2loop		# and loop back to print the counter again
+	li $v0 110
+	syscall 
+	b m2loop
 
-
-main3:	li $t0, 200		# Our counter starts at 0
-m3loop:	la $a0, m3msg		# Print out the message
+main3:	
+	li $t0, 30000		# Our counter starts at 0
+m3loop:	
+	la $a0, m3msg		# Print out the message
 	li $v0, 4
 	syscall
 	move $a0, $t0		# Print out the counter
@@ -83,11 +92,15 @@ m3loop:	la $a0, m3msg		# Print out the message
 	syscall
 
 	addi $t0, $t0, 3	# Increment counter by 1
-	b m3loop		# and loop back to print the counter again
-
-
-main4:	li $t0, 5000		# Our counter starts at 10000
-m4loop:	la $a0, m4msg		# Print out the message
+	bne $t0 304006 m3loop		# and loop back to print the counter again
+	
+	li $v0 110
+	syscall 
+	b m3loop
+main4:	
+	li $t0, 400000		# Our counter starts at 10000
+m4loop:	
+	la $a0, m4msg		# Print out the message
 	li $v0, 4
 	syscall
 	move $a0, $t0		# Print out the counter
@@ -95,4 +108,7 @@ m4loop:	la $a0, m4msg		# Print out the message
 	syscall
 
 	addi $t0, $t0, 4	# Increment counter by 2
-	b m4loop		# and loop back to print the counter again
+	bne $t0 4000146 m4loop		# and loop back to print the counter again
+	li $v0 110
+	syscall 
+	b m4loop
