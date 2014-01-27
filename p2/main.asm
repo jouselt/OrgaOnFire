@@ -76,7 +76,7 @@ m2loop:
 	li $v0, 1
 	syscall
 	addi $t0, $t0, 2	# Increment counter by 2
-	bne $t0 20042 m2loop		# and loop back to print the counter again
+	bne $t0 2002 m2loop		# and loop back to print the counter again
 	li $v0 110
 	syscall 
 	b m2loop
@@ -92,7 +92,7 @@ m3loop:
 	syscall
 
 	addi $t0, $t0, 3	# Increment counter by 1
-	bne $t0 304006 m3loop		# and loop back to print the counter again
+	bne $t0 30006 m3loop		# and loop back to print the counter again
 	
 	li $v0 110
 	syscall 
@@ -108,7 +108,7 @@ m4loop:
 	syscall
 
 	addi $t0, $t0, 4	# Increment counter by 2
-	bne $t0 4000146 m4loop		# and loop back to print the counter again
+	bne $t0 4000304 m4loop		# and loop back to print the counter again
 	li $v0 110
 	syscall 
 	b m4loop

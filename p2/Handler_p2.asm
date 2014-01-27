@@ -56,17 +56,14 @@ syscallhdlr:
 	beq $v0, 100, syscall_100	# goto the syscall 100 handler
 	beq $v0, 102, syscall_102	# goto the syscall 102 handler
 	beq $v0, 110, syscall_110	# goto the syscall 110 handler
-	beq $v0, 110, syscall_200	# goto the syscall 200 handler		
+	beq $v0, 200, syscall_200	# goto the syscall 200 handler		
 	b exit				# Exit if it isn't a syscall we can handle
 	
 keyboard:
 
 # Leemos el Receiver Data para obtener el caracter
 # presionado.
-
 	lw   $a0, 0xffff0004 
-
-	
 	beq  $a0, 0x71, tecla_Q #(q)
 	beq  $a0, 0x51, tecla_Q #(Q)	
 	b restore	  
@@ -87,11 +84,10 @@ syscall_100:
 	sw $0 28($k0)
 	sw $a0 32($k0)
 	addi $k1 $k1 36	 	
-#we don't need this, provded that the user enter up to 4 mains.	
-#hence the maximum value index can take is 144
-#	bne $k1 144 skip1
-#	add $k1 $0 $0
-#skip1:
+
+	bne $k1 144 skip1#we don't need this, provded that the user enter up to 4 mains.	
+	add $k1 $0 $0    #hence the maximum value index can take is 108
+skip1:
 	sw $k1 index
 	b finale
 	
@@ -104,11 +100,12 @@ syscall_102:
 
 
 syscall_110:
- # Here is the system call 110 handler
+	la $k0, 0xFFFF0013	# Now disable the clock ticks from the Digial Lab Sim
+	sb $0, ($k0)
+
 	la $k0, p1pcb
 	lw $k1, curpcb
 	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
-	addi $k0 $k0 -36
 	sw $a0, 0($k0)		# Save the a0, v0, t0 and t1 registers
 	sw $v0, 4($k0)
 	sw $t0, 8($k0)
@@ -118,23 +115,24 @@ syscall_110:
 	sw $a3, 24($k0)
 	sw $v1, 28($k0)
 
-	
-	mfc0 $k1 $14
-	addi $k1 $k1 4
-	sw $k1 32($k0)	
-	
+	mfc0 $k1, $14
+	add $k1 $k1 4
+	sw $k1, 32($k0)		# Save the program counter from the EPC register
+
 	lw $k0, curpcb
+	lw $k1 index 
 	addi $k0, $k0 36	# k0 = 36 + curpcb
-				
+				#meanin th current pcblock is updaded 
 	bne $k0 144 skip2	# if (k0 == 144) => k0 = 0
 	add $k0 $0 $0
 skip2:
-	sw $k0, curpcb		# now the current pcblock is updaded 
-				# so we know which is the current program, we can
+	sw $k0, curpcb
+				# Now we know which is the current program, we can
 				# restore that program's state
- 	b finale
-	
- syscall_200:
+
+ 	b restore
+
+syscall_200:
 	la $k0, p1pcb
 	lw $k1, curpcb
 	add $k0, $k0, $k1	# k0 = p1pcb + curpcb, i.e. base of current PCB
@@ -150,9 +148,10 @@ skip2:
 	b finale
  # Here is the system call 200 handler
 
-
 # Here is the clock tick interrupt handler
 inthandler:			# First thing, save the program's registers
+	la $k0, 0xFFFF0013	# Now disable the clock ticks from the Digial Lab Sim
+	sb $0, ($k0)
 
 	la $k0, p1pcb
 	lw $k1, curpcb
@@ -228,6 +227,9 @@ saltito:
 	mfc0 $k0, $12           # 
 	ori  $k0, 0x1           # Re-enable interrupts
 	mtc0 $k0, $12		# in the Status register
+	la $k0, 0xFFFF0013	# Now enable the clock ticks from the Digial Lab Sim
+	li $k1 0x1
+	sb $k1, ($k0)
 	eret			# and finally return to the old PC
 	
 tecla_Q:
