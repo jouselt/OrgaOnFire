@@ -12,7 +12,12 @@
 # syscall 102 enable the clock tick interrupt from the Digital Lab Sim, 
 # and then context switch into the 1st program.
 # 
-
+# Archivo: Handler_p2.asm
+# Descripcion: manejador de excepciones, 
+# funcionan las llamadas a syscall 100 102 110 y la interrupcion por teclado
+# al presionar la q en el simulador
+# Autores: Jouselt Fernandez (09-10282) Jorge Leon (09-11133)
+# no tiene una planificacion de registro porque en general solo se usa $k1 y $k0
 # Define a process control block for each program
 	.kdata
 p1pcb:	.space 36	# Room for a0, v0, t0, t1, a1 a2 a3 v1 and PC (offsets 0, 4, 8, 12, 16, 20, 24, 28, 32)
@@ -20,7 +25,7 @@ p2pcb:	.space 36	# Ditto
 p3pcb:	.space 36	# Ditto
 p4pcb:	.space 36	# Ditto
 index: 	.word 0
-
+currentEPC: .word 0
 curpcb:	.word 0		# Offset to the current PCB, either 0, 36, 72, 108
 saveat:	.word 0		# Saved value of $at register
 text:	.asciiz "\nocurrio una interrupcion por presionar la tecla Q... finalizacion del programa "
@@ -169,6 +174,7 @@ inthandler:			# First thing, save the program's registers
 	sw $k1, 32($k0)		# Save the old program counter from the EPC register
 				# With that program's state safely stored away, we can
 				# switch our understanding of which is the current program.
+	sw $k1 currentEPC
 	lw $k0, curpcb
 	lw $k1 index 
 	addi $k0, $k0 36	# k0 = 36 + curpcb
@@ -251,7 +257,7 @@ interrupcion_main_1:
 	li $v0, 4
 	syscall
 	
-	move $a0, $14
+	lw $a0 currentEPC
 	li $v0,	34
 	syscall					
 				
@@ -264,7 +270,7 @@ interrupcion_main_2:
 	li $v0, 4
 	syscall
 	
-	move $a0, $14
+	lw $a0 currentEPC
 	li $v0,	34
 	syscall					
 				
@@ -277,7 +283,7 @@ interrupcion_main_3:
 	li $v0, 4
 	syscall
 	
-	move $a0, $14
+	lw $a0 currentEPC
 	li $v0,	34
 	syscall					
 				
@@ -290,7 +296,7 @@ interrupcion_main_4:
 	li $v0, 4
 	syscall
 	
-	move $a0, $14
+	lw $a0 currentEPC
 	li $v0,	34
 	syscall					
 				
